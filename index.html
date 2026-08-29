@@ -65,7 +65,7 @@
     font-family:'JetBrains Mono', ui-monospace, monospace;
     font-size:13px;
     line-height:1.6;
-    overflow:hidden;
+    overflow-y:auto;
     -webkit-font-smoothing:antialiased;
   }
 
@@ -342,6 +342,16 @@
     notesPath: 'Notes' // folder to scan, relative to the repo root
   };
 
+  // A folder that contains a file with this exact name (case-insensitive)
+  // is shown in the browser as a single note — using the FOLDER's name as
+  // the label — instead of as an expandable folder. Clicking it opens
+  // this file directly. This is how a note gets its own "assets" sibling
+  // folder without cluttering the browser with a folder you have to open
+  // just to find one file inside it.
+  // e.g. Notes/.../Botany/Plant Anatomy/yuh.html + Notes/.../Botany/Plant Anatomy/assets/
+  //   -> shows up in Botany as a single note called "Plant Anatomy"
+  const NOTE_BUNDLE_FILE = 'yuh.html';
+
   function autoDetect(){
     // This guess only makes sense on a *.github.io URL. On Vercel or any
     // other domain, there's nothing to infer the repo name from, so
@@ -472,6 +482,59 @@
     });
   }
 
+  // Looks one level inside `dirPath` for a file named NOTE_BUNDLE_FILE
+  // (case-insensitive) WITHOUT going through fetchGithubFolder/fetchLocalFolder
+  // — that would recursively trigger a bundle-check on every folder inside
+  // dirPath too, which cascades into fetching the whole notes tree just to
+  // draw one screen. This stays a flat, one-level peek. Returns the exact
+  // path of the bundle file (matching its real on-disk casing) or null.
+  async function findBundleFile(dirPath){
+    try{
+      let items;
+      if(MODE === 'github'){
+        const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${encodeURIComponent(dirPath).replace(/%2F/g,'/')}?ref=${encodeURIComponent(BRANCH)}`;
+        const res = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' } });
+        if(!res.ok) return null; // any failure here just means "not a bundle folder"
+        const data = await res.json();
+        items = data.map(i => ({ type: i.type === 'dir' ? 'folder' : 'file', name: i.name, path: i.path }));
+      } else {
+        const res = await fetch(encodeURI(dirPath) + '/');
+        if(!res.ok) return null;
+        const html = await res.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        items = Array.from(doc.querySelectorAll('a[href]')).map(a => {
+          let href = a.getAttribute('href') || '';
+          if(!href || href.endsWith('/')) return null; // skip dirs, we only care about the file itself
+          if(/^[a-z]+:\/\//i.test(href) || href.startsWith('?') || href.startsWith('#')) return null;
+          href = decodeURIComponent(href);
+          if(href.includes('/')) return null;
+          return { type: 'file', name: href, path: dirPath + '/' + href };
+        }).filter(Boolean);
+      }
+      const hit = items.find(i => i.type === 'file' && i.name.toLowerCase() === NOTE_BUNDLE_FILE.toLowerCase());
+      return hit ? hit.path : null;
+    } catch(e){
+      return null;
+    }
+  }
+
+  // Mutates any 'folder' entries in `entries` that turn out to be bundle
+  // folders into 'note' entries pointing at the bundle file inside them —
+  // the folder's own name is kept as the label. Runs the checks in
+  // parallel; costs one extra request per folder shown (cached per path,
+  // so it only happens once per folder per session).
+  async function collapseBundleFolders(entries){
+    await Promise.all(entries.map(async (entry) => {
+      if(entry.type !== 'folder') return;
+      const bundlePath = await findBundleFile(entry.path);
+      if(bundlePath){
+        entry.type = 'note';
+        entry.path = bundlePath;
+      }
+    }));
+    return entries;
+  }
+
   async function fetchGithubFolder(path){
     const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${encodeURIComponent(path).replace(/%2F/g,'/')}?ref=${encodeURIComponent(BRANCH)}`;
     const res = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' } });
@@ -481,13 +544,15 @@
       throw new Error(`GitHub API error (${res.status}).`);
     }
     const data = await res.json();
-    return sortEntries(data
+    const base = data
+      .filter(i => i.name.toLowerCase() !== 'assets') // asset folders exist on disk but stay out of the note browser
       .filter(i => i.type === 'dir' || (i.type === 'file' && i.name.toLowerCase().endsWith('.html')))
       .map(i => ({
         type: i.type === 'dir' ? 'folder' : 'note',
         name: i.type === 'dir' ? i.name : i.name.replace(/\.html$/i, ''),
         path: i.path
-      })));
+      }));
+    return sortEntries(await collapseBundleFolders(base));
   }
 
   // Parses the plain HTML directory-listing page that most static
@@ -509,6 +574,7 @@
       const isDir = href.endsWith('/');
       const rawName = isDir ? href.slice(0, -1) : href;
       if(rawName.includes('/')) return; // some servers list full paths, not just names
+      if(isDir && rawName.toLowerCase() === 'assets') return; // asset folders exist on disk but stay out of the note browser
       if(!isDir && !rawName.toLowerCase().endsWith('.html')) return;
       if(seen.has(rawName)) return;
       seen.add(rawName);
@@ -521,7 +587,7 @@
     if(result.length === 0 && !html.includes('<a')){
       throw new Error(`This server doesn't return a directory listing for "${path}". Try python3 -m http.server, or npx serve, run from the Academis folder.`);
     }
-    return sortEntries(result);
+    return sortEntries(await collapseBundleFolders(result));
   }
 
   async function fetchFolder(path){
