@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Not found</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><rect width='48' height='48' rx='11' fill='%232563EB'/><path d='M15 10h13l7 7v20a1.6 1.6 0 0 1-1.6 1.6H15a1.6 1.6 0 0 1-1.6-1.6V11.6A1.6 1.6 0 0 1 15 10Z' fill='%23F6F8FA'/></svg>">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">
+<script>
+  // Reads the SAME localStorage key as index.html, so this page always
+  // matches whatever the app was last set to (light stays light until
+  // index.html is switched to dark).
+  (function(){
+    try{
+      var saved = localStorage.getItem('academis-theme');
+      if(saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    } catch(e){ /* localStorage unavailable — default to light */ }
+  })();
+</script>
+<style>
+  :root{
+    --bg:#F6F8FA;
+    --surface:#FFFFFF;
+    --border:#D9E0E7;
+    --border-soft:#E7EBEF;
+    --ink:#17212B;
+    --ink-dim:#66737F;
+    --ink-faint:#9AA5AF;
+    --note:#2563EB;
+    --note-soft:rgba(37,99,235,0.08);
+  }
+  :root[data-theme="dark"]{
+    --bg:#10151B;
+    --surface:#181F27;
+    --border:#2C3844;
+    --border-soft:#212B35;
+    --ink:#E6EDF3;
+    --ink-dim:#8B98A5;
+    --ink-faint:#586674;
+    --note:#4C8DFF;
+    --note-soft:rgba(76,141,255,0.14);
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; margin:0; }
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'JetBrains Mono', ui-monospace, monospace;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  .wrap{
+    text-align:center;
+    max-width:360px;
+    padding:0 24px;
+  }
+  .art{
+    font-size:12px;
+    line-height:1.4;
+    white-space:pre;
+    color:var(--ink-faint);
+    margin:0 0 22px;
+  }
+  .msg{
+    font-size:15.5px;
+    margin:0 0 8px;
+  }
+  .sub{
+    font-size:13px;
+    color:var(--ink-dim);
+    margin:0 0 26px;
+  }
+  a.home{
+    display:inline-block;
+    font-size:13px;
+    color:var(--note);
+    background:var(--note-soft);
+    border-radius:20px;
+    padding:8px 18px;
+    text-decoration:none;
+  }
+  a.home:hover{ background:var(--note); color:var(--surface); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="art">┌──────────────┐
+│ □      □ □   │
+│ □ □ □        │
+│      □ □ □   │
+└──────────────┘</div>
+  <p class="msg">There is no note like this.</p>
+  <p class="sub">the page you're looking for doesn't exist</p>
+  <a class="home" href="/">back to notes</a>
+</div>
+
+</body>
+</html>

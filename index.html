@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Notes</title>
+<script>
+  // Applied as early as possible (before first paint) so there's no
+  // flash of dark mode when you've toggled it on previously.
+  // Defaults to light mode until you explicitly switch to dark.
+  (function(){
+    try{
+      var saved = localStorage.getItem('academis-theme');
+      if(saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    } catch(e){ /* localStorage unavailable (e.g. file://) — just default to light */ }
+  })();
+</script>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><rect width='48' height='48' rx='11' fill='%232563EB'/><path d='M15 10h13l7 7v20a1.6 1.6 0 0 1-1.6 1.6H15a1.6 1.6 0 0 1-1.6-1.6V11.6A1.6 1.6 0 0 1 15 10Z' fill='%23F6F8FA'/></svg>">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F6F8FA;
+    --surface:#FFFFFF;
+    --surface-hover:#EEF2F6;
+    --border:#D9E0E7;
+    --border-soft:#E7EBEF;
+    --ink:#17212B;
+    --ink-dim:#66737F;
+    --ink-faint:#9AA5AF;
+    --folder:#64748B;
+    --folder-soft:rgba(100,116,139,0.12);
+    --note:#2563EB;
+    --note-soft:rgba(37,99,235,0.1);
+    --danger:#DC4C4C;
+    --danger-soft:rgba(220,76,76,0.1);
+  }
+
+  :root[data-theme="dark"]{
+    --bg:#10151B;
+    --surface:#181F27;
+    --surface-hover:#212A34;
+    --border:#2C3844;
+    --border-soft:#212B35;
+    --ink:#E6EDF3;
+    --ink-dim:#8B98A5;
+    --ink-faint:#586674;
+    --folder:#8593A3;
+    --folder-soft:rgba(133,147,163,0.14);
+    --note:#4C8DFF;
+    --note-soft:rgba(76,141,255,0.14);
+    --danger:#F0665F;
+    --danger-soft:rgba(240,102,95,0.14);
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; margin:0; }
+  ::selection{ background:var(--note-soft); color:var(--note); }
+
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'JetBrains Mono', ui-monospace, monospace;
+    font-size:13px;
+    line-height:1.6;
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  button, input{
+    font-family:inherit;
+    font-size:inherit;
+    color:inherit;
+    background:none;
+    border:none;
+    outline:none;
+  }
+
+  .app{
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+  }
+
+  .tabbar-row{
+    display:flex;
+    align-items:stretch;
+    background:var(--surface);
+    border-bottom:1px solid var(--border-soft);
+    flex-shrink:0;
+  }
+  .tabbar{
+    display:flex;
+    align-items:center;
+    overflow-x:auto;
+    flex:0 1 auto;
+    min-width:0;
+  }
+  .tabbar::-webkit-scrollbar{ height:0; }
+  .tab{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    padding:4px 8px 4px 10px;
+    border-right:1px solid var(--border-soft);
+    color:var(--ink-dim);
+    cursor:pointer;
+    white-space:nowrap;
+    font-size:12px;
+    flex-shrink:0;
+  }
+  .tab.active{
+    background:var(--bg);
+    color:var(--ink);
+    box-shadow: inset 0 2px 0 var(--note);
+  }
+  .tab:hover{ color:var(--ink); }
+  .tab-close{
+    color:var(--ink-faint);
+    border-radius:4px;
+    width:18px; height:18px;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+    font-size:14px;
+    line-height:1;
+  }
+  .tab-close:hover{ background:var(--danger-soft); color:var(--danger); }
+  .tab-add{
+    display:flex; align-items:center; justify-content:center;
+    width:26px;
+    flex-shrink:0;
+    color:var(--ink-faint);
+    cursor:pointer;
+    border-left:1px solid var(--border-soft);
+  }
+  .tab-add svg{ width:13px; height:13px; }
+  .tab-add:hover{ color:var(--ink); background:var(--surface-hover); }
+
+  .subbar{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    padding:3px 12px;
+    color:var(--ink);
+    font-size:12px;
+    border-bottom:1px solid var(--border-soft);
+    flex-shrink:0;
+  }
+  .crumbs{
+    display:flex;
+    align-items:center;
+    gap:2px;
+    flex:1;
+    min-width:0;
+    overflow-x:auto;
+    white-space:nowrap;
+  }
+  .crumb{
+    cursor:pointer;
+    padding:2px 4px;
+    border-radius:3px;
+    color:var(--ink-dim);
+  }
+  .crumb:hover{ color:var(--ink); background:var(--surface-hover); }
+  .crumb.current{ color:var(--ink); font-weight:700; cursor:default; }
+  .crumb.current:hover{ background:none; }
+  .crumb-sep{ color:var(--ink-faint); padding:0 1px; }
+
+  .bar-actions{ display:flex; align-items:center; gap:4px; flex-shrink:0; }
+  .icon-btn{
+    display:flex; align-items:center; justify-content:center;
+    width:18px; height:18px;
+    border-radius:4px;
+    color:var(--ink-faint);
+    cursor:pointer;
+  }
+  .icon-btn:hover{ color:var(--ink); background:var(--surface-hover); }
+  .icon-btn svg{ width:12px; height:12px; }
+  .icon-btn.spin svg{ animation:spin .6s linear; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  .search-row{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    padding:0 14px 6px;
+    border-bottom:1px solid var(--border-soft);
+    flex-shrink:0;
+  }
+  .search-row.hidden{ display:none; }
+  .search-row input{
+    flex:1;
+    color:var(--ink);
+    border-bottom:1px solid var(--border);
+    padding:4px 2px;
+  }
+  .search-row input::placeholder{ color:var(--ink-faint); }
+  .search-row .prompt-char{ color:var(--note); }
+
+  .browser{
+    flex:1;
+    overflow-y:auto;
+    padding:22px;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(110px, 1fr));
+    gap:8px;
+  }
+  .card{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:9px;
+    padding:16px 6px 11px;
+    border-radius:8px;
+    cursor:pointer;
+    border:1px solid transparent;
+    user-select:none;
+    text-align:center;
+    text-decoration:none;
+    color:inherit;
+  }
+  .card:hover{ background:var(--surface); border-color:var(--border-soft); }
+  .card svg{ width:40px; height:40px; flex-shrink:0; }
+  .card .cname{
+    font-size:11.5px;
+    color:var(--ink);
+    max-width:100%;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    padding:0 2px;
+  }
+
+  .browser-empty, .browser-status{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    height:100%;
+    color:var(--ink-faint);
+    text-align:center;
+    gap:16px;
+  }
+  .browser-empty .art{ font-size:11px; line-height:1.4; white-space:pre; color:var(--ink-faint); }
+  .browser-empty .msg b{ color:var(--note); font-weight:600; }
+  .browser-status .msg{ max-width:420px; color:var(--ink-dim); }
+  .browser-status .msg b{ color:var(--danger); }
+  .retry-btn{
+    padding:7px 14px;
+    border:1px solid var(--border);
+    border-radius:5px;
+    color:var(--ink-dim);
+    cursor:pointer;
+  }
+  .retry-btn:hover{ color:var(--ink); border-color:var(--note); }
+
+  .note-frame{
+    flex:1;
+    border:none;
+    width:100%;
+    background:var(--surface);
+  }
+
+  .fullscreen-btn{
+    position:fixed;
+    bottom:18px;
+    right:18px;
+    width:34px;
+    height:34px;
+    border-radius:8px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    color:var(--ink-dim);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    box-shadow:0 2px 10px rgba(23,33,43,0.15);
+    z-index:50;
+  }
+  .fullscreen-btn:hover{ color:var(--ink); border-color:var(--note); }
+  .fullscreen-btn svg{ width:16px; height:16px; }
+
+  .app.fullscreen .tabbar-row,
+  .app.fullscreen .subbar,
+  .app.fullscreen .search-row{
+    display:none !important;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation:none !important; transition:none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="tabbar-row" id="tabbarRow">
+    <div class="tabbar" id="tabbar"></div>
+    <div class="tab-add" id="addTabBtn" title="new tab">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </div>
+  </div>
+
+  <div class="subbar">
+    <div class="crumbs" id="crumbs"></div>
+    <div class="bar-actions">
+      <div class="icon-btn" id="themeToggle" title="toggle dark mode"></div>
+      <div class="icon-btn" id="searchToggle" title="search this folder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </div>
+      <div class="icon-btn" id="refreshBtn" title="refresh this folder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 3 21 9 15 9"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="search-row hidden" id="searchRow">
+    <span class="prompt-char">&gt;</span>
+    <input id="searchInput" placeholder="find in this folder…" autocomplete="off" spellcheck="false" />
+  </div>
+
+  <div id="mainArea" style="flex:1; display:flex; flex-direction:column; min-height:0;"></div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  // ── CONFIG ──────────────────────────────────────────────────────────
+  // Fill these in for reliability. If left blank, the script tries to
+  // guess them from the URL (works for the common "username.github.io"
+  // and "username.github.io/repo-name/" setups), but hardcoding is safer.
+  const CONFIG = {
+    owner: '',        // e.g. 'yourusername'
+    repo: '',         // e.g. 'Academis'
+    branch: 'main',   // branch the site is built from
+    notesPath: 'Notes' // folder to scan, relative to the repo root
+  };
+
+  function autoDetect(){
+    // This guess only makes sense on a *.github.io URL. On Vercel or any
+    // other domain, there's nothing to infer the repo name from, so
+    // CONFIG.owner/repo must be filled in by hand.
+    if(!location.hostname.endsWith('.github.io')){
+      return { owner: CONFIG.owner, repo: CONFIG.repo };
+    }
+    const segments = location.pathname.split('/').filter(Boolean);
+    let owner = CONFIG.owner || location.hostname.split('.')[0];
+    let repo = CONFIG.repo;
+    if(!repo){
+      // Project page (username.github.io/repo/...) -> first path segment is the repo.
+      // User/org page (username.github.io) -> the repo IS "<owner>.github.io".
+      repo = (segments.length && !segments[0].includes('.')) ? segments[0] : owner + '.github.io';
+    }
+    return { owner, repo };
+  }
+
+  const detected = autoDetect();
+  const OWNER = detected.owner;
+  const REPO = detected.repo;
+  const BRANCH = CONFIG.branch;
+  const ROOT_PATH = CONFIG.notesPath;
+
+  // ── ENVIRONMENT ───────────────────────────────────────────────────────
+  // Localhost / a local dev server (python3 -m http.server, `npx serve`,
+  // VS Code Live Server, etc.) -> read the server's own auto-generated
+  // directory listing, so it works before you've even pushed anything.
+  // Any real deployed host (GitHub Pages, Vercel, a custom domain, ...)
+  // -> none of these auto-generate folder listings for static sites, so
+  // read via the GitHub API instead, using CONFIG.owner/repo.
+  // Opened straight from disk (file://) -> browsers won't let a page
+  // list local folders at all, so we show a short instruction instead.
+  const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
+  const MODE = location.protocol === 'file:'
+    ? 'file'
+    : (LOOPBACK_HOSTS.has(location.hostname) ? 'local' : 'github');
+
+  // ── ICONS ─────────────────────────────────────────────────────────────
+  const ICON_FOLDER = `
+    <svg viewBox="0 0 48 48" fill="none">
+      <path d="M1 10.5a2.5 2.5 0 0 1 2.5-2.5h13l4 5h24a2.5 2.5 0 0 1 2.5 2.5v4H1V10.5Z" fill="var(--folder)" opacity="0.55"/>
+      <path d="M1 19.5h46V40a3.5 3.5 0 0 1-3.5 3.5h-39A3.5 3.5 0 0 1 1 40V19.5Z" fill="var(--folder)"/>
+    </svg>`;
+
+  const ICON_NOTE = `
+    <svg viewBox="0 0 48 48" fill="none">
+      <path d="M12.5 4h17l10 10v27.5A2.5 2.5 0 0 1 37 44H12.5A2.5 2.5 0 0 1 10 41.5V6.5A2.5 2.5 0 0 1 12.5 4Z" fill="var(--note)"/>
+      <path d="M29.5 4l10 10h-7.5a2.5 2.5 0 0 1-2.5-2.5V4Z" fill="var(--surface)" opacity="0.3"/>
+      <line x1="15.5" y1="24" x2="34" y2="24" stroke="var(--surface)" stroke-width="2" stroke-linecap="round"/>
+      <line x1="15.5" y1="30.5" x2="34" y2="30.5" stroke="var(--surface)" stroke-width="2" stroke-linecap="round"/>
+      <line x1="15.5" y1="37" x2="26" y2="37" stroke="var(--surface)" stroke-width="2" stroke-linecap="round"/>
+    </svg>`;
+
+  const ICON_EXPAND = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
+      <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+    </svg>`;
+
+  const ICON_COMPRESS = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="9 3 9 9 3 9"/><polyline points="15 21 15 15 21 15"/>
+      <line x1="9" y1="9" x2="3" y2="3"/><line x1="15" y1="15" x2="21" y2="21"/>
+    </svg>`;
+
+  // shown when currently light — click to go dark
+  const ICON_MOON = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/>
+    </svg>`;
+
+  // shown when currently dark — click to go light
+  const ICON_SUN = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="4"/>
+      <line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/>
+      <line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/>
+      <line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/>
+      <line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/>
+    </svg>`;
+
+  // ── THEME ───────────────────────────────────────────────────────────
+  // index.html is the single place theme lives — the note template has
+  // no toggle of its own, it just gets told what to be.
+  const THEME_KEY = 'academis-theme';
+  let currentTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+
+  function applyTheme(theme, persist){
+    currentTheme = theme;
+    document.documentElement.setAttribute('data-theme', theme);
+    if(persist){
+      try{ localStorage.setItem(THEME_KEY, theme); } catch(e){ /* file:// or storage disabled */ }
+    }
+    const btn = el('themeToggle');
+    if(btn){
+      btn.innerHTML = theme === 'dark' ? ICON_SUN : ICON_MOON;
+      btn.title = theme === 'dark' ? 'switch to light mode' : 'switch to dark mode';
+    }
+    // If a note is currently open in an iframe, push the theme into it live.
+    const frame = mainArea.querySelector('.note-frame');
+    if(frame) syncFrameTheme(frame);
+  }
+
+  function toggleTheme(){
+    applyTheme(currentTheme === 'dark' ? 'light' : 'dark', true);
+  }
+
+  // Forces whatever theme index.html is currently on into a same-origin
+  // note iframe (same-origin only — cross-origin notes can't be reached).
+  function syncFrameTheme(iframe){
+    try{
+      const doc = iframe.contentDocument;
+      if(!doc) return;
+      doc.documentElement.setAttribute('data-theme', currentTheme);
+    } catch(e){
+      // cross-origin note — can't reach in, nothing we can do
+    }
+  }
+
+  // ── DATA LAYER (shared by every tab) ─────────────────────────────────
+  const cache = new Map(); // path -> entries, so switching tabs is instant
+
+  function sortEntries(list){
+    return list.sort((a,b) => {
+      if(a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+  }
+
+  async function fetchGithubFolder(path){
+    const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${encodeURIComponent(path).replace(/%2F/g,'/')}?ref=${encodeURIComponent(BRANCH)}`;
+    const res = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' } });
+    if(!res.ok){
+      if(res.status === 403) throw new Error('GitHub API rate limit hit — wait a bit and refresh.');
+      if(res.status === 404) throw new Error(`Folder not found: "${path}". Check CONFIG.owner/repo/branch/notesPath.`);
+      throw new Error(`GitHub API error (${res.status}).`);
+    }
+    const data = await res.json();
+    return sortEntries(data
+      .filter(i => i.type === 'dir' || (i.type === 'file' && i.name.toLowerCase().endsWith('.html')))
+      .map(i => ({
+        type: i.type === 'dir' ? 'folder' : 'note',
+        name: i.type === 'dir' ? i.name : i.name.replace(/\.html$/i, ''),
+        path: i.path
+      })));
+  }
+
+  // Parses the plain HTML directory-listing page that most static
+  // servers auto-generate for a folder with no index.html in it.
+  async function fetchLocalFolder(path){
+    const res = await fetch(encodeURI(path) + '/');
+    if(!res.ok){
+      throw new Error(`Could not open "${path}" (HTTP ${res.status}). Make sure your local server's working directory is the Academis folder.`);
+    }
+    const html = await res.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const seen = new Set();
+    const result = [];
+    doc.querySelectorAll('a[href]').forEach(a => {
+      let href = a.getAttribute('href');
+      if(!href || href === '../' || href === '..' || href === '/' || href === './') return;
+      if(/^[a-z]+:\/\//i.test(href) || href.startsWith('?') || href.startsWith('#')) return;
+      href = decodeURIComponent(href);
+      const isDir = href.endsWith('/');
+      const rawName = isDir ? href.slice(0, -1) : href;
+      if(rawName.includes('/')) return; // some servers list full paths, not just names
+      if(!isDir && !rawName.toLowerCase().endsWith('.html')) return;
+      if(seen.has(rawName)) return;
+      seen.add(rawName);
+      result.push({
+        type: isDir ? 'folder' : 'note',
+        name: isDir ? rawName : rawName.replace(/\.html$/i, ''),
+        path: path + '/' + rawName
+      });
+    });
+    if(result.length === 0 && !html.includes('<a')){
+      throw new Error(`This server doesn't return a directory listing for "${path}". Try python3 -m http.server, or npx serve, run from the Academis folder.`);
+    }
+    return sortEntries(result);
+  }
+
+  async function fetchFolder(path){
+    if(cache.has(path)) return cache.get(path);
+    const data = MODE === 'github' ? await fetchGithubFolder(path) : await fetchLocalFolder(path);
+    cache.set(path, data);
+    return data;
+  }
+
+  // ── TABS ──────────────────────────────────────────────────────────────
+  // Each tab is either kind:'browse' (browsing a folder, own pathStack)
+  // or kind:'note' (viewing one note in an iframe). A tab remembers the
+  // folder it was opened from, so jumping back via the breadcrumb works.
+  let tabs = [];
+  let activeTabId = null;
+  let isFullscreen = false;
+
+  function toggleFullscreen(){
+    isFullscreen = !isFullscreen;
+    document.querySelector('.app').classList.toggle('fullscreen', isFullscreen);
+    const btn = document.querySelector('.fullscreen-btn');
+    if(btn){
+      btn.title = isFullscreen ? 'exit full screen' : 'full screen';
+      btn.innerHTML = isFullscreen ? ICON_COMPRESS : ICON_EXPAND;
+    }
+  }
+
+  function newId(){ return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+  function activeTab(){ return tabs.find(t => t.id === activeTabId); }
+  function pathFor(tab){ return [ROOT_PATH, ...tab.pathStack].join('/'); }
+  function tabTitle(tab){ return tab.kind === 'note' ? tab.noteName : pathFor(tab); }
+
+  function createBrowseTab(pathStack){
+    const tab = {
+      id: newId(), kind: 'browse', pathStack: [...(pathStack || [])],
+      loadState: 'loading', errorMessage: '', entries: [], searchQuery: ''
+    };
+    tabs.push(tab);
+    activeTabId = tab.id;
+    loadTabFolder(tab);
+  }
+
+  async function loadTabFolder(tab){
+    tab.loadState = 'loading';
+    render();
+    if(MODE === 'file'){
+      tab.loadState = 'error';
+      tab.errorMessage = "Opened directly from disk — browsers can't list local folders that way. Run a tiny local server from the Academis folder instead, e.g. \"python3 -m http.server 8000\", then open http://localhost:8000/ in your browser.";
+      render();
+      return;
+    }
+    try{
+      tab.entries = await fetchFolder(pathFor(tab));
+      tab.loadState = 'ok';
+    } catch(e){
+      tab.loadState = 'error';
+      tab.errorMessage = e.message || 'Something went wrong.';
+    }
+    render();
+  }
+
+  // Checks that a note file actually exists at its expected URL before
+  // we hand it to an iframe — an iframe pointed at a missing file just
+  // shows the server's raw, unstyled 404 page, which looks broken.
+  async function checkNoteExists(notePath){
+    try{
+      const res = await fetch(notePath, { method: 'GET', cache: 'no-store' });
+      return res.ok;
+    } catch(e){
+      return false;
+    }
+  }
+
+  async function loadNoteTab(tab){
+    tab.noteState = 'loading';
+    render();
+    tab.noteState = (await checkNoteExists(tab.notePath)) ? 'ok' : 'error';
+    render();
+  }
+
+  function openNote(item, fromTab){
+    const existing = tabs.find(t => t.kind === 'note' && t.notePath === item.path);
+    if(existing){ activeTabId = existing.id; render(); return; }
+    // reuse the current tab instead of opening a new one
+    fromTab.kind = 'note';
+    fromTab.notePath = item.path;
+    fromTab.noteName = item.name;
+    // pathStack stays as-is, so it remembers where it was opened from
+    activeTabId = fromTab.id;
+    loadNoteTab(fromTab);
+  }
+
+  // Used when a link *inside a note* points at another note (rather than
+  // a folder-browser click), so it always lands in its own new tab
+  // instead of replacing the note you were just reading.
+  function openNoteInNewTab(notePath, noteName, pathStack){
+    const existing = tabs.find(t => t.kind === 'note' && t.notePath === notePath);
+    if(existing){ activeTabId = existing.id; render(); return; }
+    const tab = {
+      id: newId(), kind: 'note', notePath, noteName,
+      pathStack: pathStack || []
+    };
+    tabs.push(tab);
+    activeTabId = tab.id;
+    loadNoteTab(tab);
+  }
+
+  // Given a same-origin <a> element clicked inside a note, figures out
+  // whether it points at another note under ROOT_PATH. Returns
+  // {notePath, noteName, pathStack} if so, otherwise null.
+  function resolveInternalNoteLink(anchor){
+    if(!anchor || !anchor.href) return null;
+    let url;
+    try{ url = new URL(anchor.href); } catch(e){ return null; }
+    if(url.origin !== location.origin) return null;
+    if(!/\.html?$/i.test(url.pathname)) return null;
+
+    const rootSegs = ROOT_PATH.split('/').filter(Boolean);
+    const parts = url.pathname.split('/').filter(Boolean);
+    let rootIdx = -1;
+    for(let i = 0; i <= parts.length - rootSegs.length; i++){
+      if(rootSegs.every((seg, j) => parts[i + j] === seg)){ rootIdx = i; break; }
+    }
+    if(rootIdx === -1) return null; // .html file outside the notes folder entirely
+
+    const relParts = parts.slice(rootIdx);
+    const fileName = relParts[relParts.length - 1];
+    return {
+      notePath: relParts.join('/'),
+      noteName: fileName.replace(/\.html?$/i, ''),
+      pathStack: relParts.slice(rootSegs.length, -1)
+    };
+  }
+
+  // Intercepts clicks inside a same-origin note's document: links to
+  // another note open as a new app tab, everything else (external
+  // sites, non-note files, mailto:, etc.) opens in a real new browser tab.
+  // In-page "#anchor" jumps are left completely alone.
+  function interceptNoteLinks(doc){
+    doc.addEventListener('click', (e) => {
+      const a = e.target.closest && e.target.closest('a[href]');
+      if(!a) return;
+      const rawHref = a.getAttribute('href') || '';
+      if(rawHref.startsWith('#')) return; // same-page jump — let it behave natively
+
+      const internal = resolveInternalNoteLink(a);
+      e.preventDefault();
+      if(internal){
+        openNoteInNewTab(internal.notePath, internal.noteName, internal.pathStack);
+      } else {
+        window.open(a.href, '_blank', 'noopener');
+      }
+    }, true);
+  }
+
+  function closeTab(id){
+    tabs = tabs.filter(t => t.id !== id);
+    if(tabs.length === 0){ createBrowseTab([]); return; }
+    if(activeTabId === id){ activeTabId = tabs[tabs.length - 1].id; }
+    render();
+  }
+
+  // Returns a tab to browse mode at the given depth of its own path,
+  // used by breadcrumb clicks (works whether the tab was viewing a note
+  // or already browsing).
+  function backToFolder(tab, depth){
+    tab.kind = 'browse';
+    tab.pathStack = tab.pathStack.slice(0, depth);
+    delete tab.notePath;
+    delete tab.noteName;
+    delete tab.noteState;
+    if(!tab.searchQuery) tab.searchQuery = '';
+    loadTabFolder(tab);
+  }
+
+  // ── UI ────────────────────────────────────────────────────────────────
+  const el = (id) => document.getElementById(id);
+  const tabbar = el('tabbar');
+  const crumbs = el('crumbs');
+  const mainArea = el('mainArea');
+  const searchRow = el('searchRow');
+  const searchInput = el('searchInput');
+  let searchOpen = false;
+
+  function matchesSearch(tab, item){
+    if(!tab.searchQuery) return true;
+    return item.name.toLowerCase().includes(tab.searchQuery);
+  }
+
+  function renderTabs(){
+    tabbar.innerHTML = '';
+    const tab0 = activeTab();
+    const isAtRoot = tab0 && tab0.kind === 'browse' && tab0.pathStack.length === 0;
+    const showBar = tabs.length > 1 || !isAtRoot;
+    el('tabbarRow').style.display = showBar ? '' : 'none';
+    if(!showBar) return;
+    tabs.forEach(tab => {
+      const el2 = document.createElement('div');
+      el2.className = 'tab' + (tab.id === activeTabId ? ' active' : '');
+      const name = document.createElement('span');
+      name.textContent = tabTitle(tab);
+      const close = document.createElement('span');
+      close.className = 'tab-close';
+      close.textContent = '×';
+      close.onclick = (e) => { e.stopPropagation(); closeTab(tab.id); };
+      el2.appendChild(name);
+      el2.appendChild(close);
+      el2.addEventListener('click', () => { activeTabId = tab.id; render(); });
+      tabbar.appendChild(el2);
+    });
+  }
+
+  function renderBreadcrumb(){
+    crumbs.innerHTML = '';
+    const tab = activeTab();
+    if(!tab) return;
+
+    const root = document.createElement('span');
+    root.className = 'crumb' + (tab.pathStack.length === 0 && tab.kind === 'browse' ? ' current' : '');
+    root.textContent = ROOT_PATH;
+    root.onclick = () => backToFolder(tab, 0);
+    crumbs.appendChild(root);
+
+    tab.pathStack.forEach((name, idx) => {
+      const sep = document.createElement('span');
+      sep.className = 'crumb-sep';
+      sep.textContent = '/';
+      crumbs.appendChild(sep);
+      const c = document.createElement('span');
+      const isLast = idx === tab.pathStack.length - 1;
+      c.className = 'crumb' + (isLast && tab.kind === 'browse' ? ' current' : '');
+      c.textContent = name;
+      c.onclick = () => backToFolder(tab, idx + 1);
+      crumbs.appendChild(c);
+    });
+
+    if(tab.kind === 'note'){
+      const sep = document.createElement('span');
+      sep.className = 'crumb-sep';
+      sep.textContent = '/';
+      crumbs.appendChild(sep);
+      const c = document.createElement('span');
+      c.className = 'crumb current';
+      c.textContent = tab.noteName;
+      crumbs.appendChild(c);
+    }
+  }
+
+  function renderNoteFrame(tab){
+    mainArea.innerHTML = '';
+
+    if(tab.noteState === 'loading' || tab.noteState === undefined){
+      const status = document.createElement('div');
+      status.className = 'browser-status';
+      status.innerHTML = `<div class="msg">opening ${tab.noteName}…</div>`;
+      mainArea.appendChild(status);
+      return;
+    }
+
+    if(tab.noteState === 'error'){
+      const status = document.createElement('div');
+      status.className = 'browser-empty';
+      status.innerHTML = `
+        <div class="art">┌──────────────┐
+│ □      □ □   │
+│ □ □ □        │
+│      □ □ □   │
+└──────────────┘</div>
+        <div class="msg">There is no note like this.</div>`;
+      const retry = document.createElement('div');
+      retry.className = 'retry-btn';
+      retry.textContent = 'back to folder';
+      retry.onclick = () => backToFolder(tab, tab.pathStack.length);
+      status.appendChild(retry);
+      mainArea.appendChild(status);
+      return;
+    }
+
+    const iframe = document.createElement('iframe');
+    iframe.className = 'note-frame';
+    iframe.src = tab.notePath;
+    iframe.addEventListener('load', () => {
+      try{
+        const doc = iframe.contentDocument;
+        if(!doc) return; // cross-origin note, can't reach in
+        doc.documentElement.setAttribute('data-theme', currentTheme);
+        const link = doc.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap';
+        doc.head.appendChild(link);
+        const style = doc.createElement('style');
+        style.textContent = `*, *::before, *::after{ font-family:'JetBrains Mono', ui-monospace, monospace !important; } .katex, .katex *{ font-family:KaTeX_Main, 'Times New Roman', serif !important; }`;
+        doc.head.appendChild(style);
+        interceptNoteLinks(doc);
+      } catch(e){
+        // cross-origin note (e.g. served from a different host) — can't inject into it
+      }
+    });
+    mainArea.appendChild(iframe);
+
+    const fsBtn = document.createElement('div');
+    fsBtn.className = 'fullscreen-btn';
+    fsBtn.title = isFullscreen ? 'exit full screen' : 'full screen';
+    fsBtn.innerHTML = isFullscreen ? ICON_COMPRESS : ICON_EXPAND;
+    fsBtn.onclick = toggleFullscreen;
+    mainArea.appendChild(fsBtn);
+  }
+
+  function renderBrowser(tab){
+    mainArea.innerHTML = '';
+    const container = document.createElement('div');
+    container.className = 'browser';
+
+    if(tab.loadState === 'loading'){
+      const status = document.createElement('div');
+      status.className = 'browser-status';
+      status.innerHTML = `<div class="msg">loading ${pathFor(tab)}…</div>`;
+      container.appendChild(status);
+      mainArea.appendChild(container);
+      return;
+    }
+
+    if(tab.loadState === 'error'){
+      const status = document.createElement('div');
+      status.className = 'browser-status';
+      status.innerHTML = `<div class="msg"><b>couldn't load this folder</b><br>${tab.errorMessage}</div>`;
+      const retry = document.createElement('div');
+      retry.className = 'retry-btn';
+      retry.textContent = 'retry';
+      retry.onclick = () => { cache.delete(pathFor(tab)); loadTabFolder(tab); };
+      status.appendChild(retry);
+      container.appendChild(status);
+      mainArea.appendChild(container);
+      return;
+    }
+
+    const visible = tab.entries.filter(item => matchesSearch(tab, item));
+
+    if(visible.length === 0){
+      const empty = document.createElement('div');
+      empty.className = 'browser-empty';
+      empty.innerHTML = `
+        <div class="art">┌──────────────┐
+│ □      □ □   │
+│ □ □ □        │
+│      □ □ □   │
+└──────────────┘</div>
+        <div class="msg">${tab.searchQuery ? 'no matches here' : 'nothing here yet — add folders or .html notes in <b>' + pathFor(tab) + '</b>'}</div>`;
+      container.appendChild(empty);
+      mainArea.appendChild(container);
+      return;
+    }
+
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+
+    visible.forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'card ' + item.type;
+
+      const iconWrap = document.createElement('div');
+      iconWrap.innerHTML = item.type === 'folder' ? ICON_FOLDER : ICON_NOTE;
+      card.appendChild(iconWrap);
+
+      const name = document.createElement('div');
+      name.className = 'cname';
+      name.textContent = item.name;
+      card.appendChild(name);
+
+      if(item.type === 'folder'){
+        card.addEventListener('click', () => {
+          tab.pathStack.push(item.name);
+          loadTabFolder(tab);
+        });
+      } else {
+        card.addEventListener('click', () => openNote(item, tab));
+      }
+
+      grid.appendChild(card);
+    });
+
+    container.appendChild(grid);
+    mainArea.appendChild(container);
+  }
+
+  function render(){
+    const tab = activeTab();
+    renderTabs();
+    renderBreadcrumb();
+    if(!tab){
+      document.querySelector('.app').classList.remove('fullscreen');
+      return;
+    }
+    if(tab.kind !== 'note') isFullscreen = false;
+    document.querySelector('.app').classList.toggle('fullscreen', tab.kind === 'note' && isFullscreen);
+    searchInput.value = tab.searchQuery || '';
+    if(tab.kind === 'note'){
+      renderNoteFrame(tab);
+    } else {
+      renderBrowser(tab);
+    }
+  }
+
+  el('themeToggle').addEventListener('click', toggleTheme);
+
+  el('addTabBtn').addEventListener('click', () => {
+    const current = activeTab();
+    createBrowseTab(current ? current.pathStack : []);
+  });
+
+  el('searchToggle').addEventListener('click', () => {
+    searchOpen = !searchOpen;
+    searchRow.classList.toggle('hidden', !searchOpen);
+    if(searchOpen){
+      setTimeout(() => searchInput.focus(), 0);
+    } else {
+      const tab = activeTab();
+      if(tab){ tab.searchQuery = ''; }
+      searchInput.value = '';
+      render();
+    }
+  });
+
+  searchInput.addEventListener('input', (e) => {
+    const tab = activeTab();
+    if(!tab || tab.kind !== 'browse') return;
+    tab.searchQuery = e.target.value.trim().toLowerCase();
+    renderBrowser(tab);
+  });
+
+  el('refreshBtn').addEventListener('click', (e) => {
+    e.currentTarget.classList.add('spin');
+    setTimeout(() => e.currentTarget.classList.remove('spin'), 600);
+    const tab = activeTab();
+    if(!tab) return;
+    if(tab.kind === 'browse'){ cache.delete(pathFor(tab)); loadTabFolder(tab); }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    const tab = activeTab();
+    if(e.key === 'Escape' && tab && tab.kind === 'note'){
+      backToFolder(tab, tab.pathStack.length);
+    }
+  });
+
+  applyTheme(currentTheme, false); // sync the icon to whatever the head script already applied
+  createBrowseTab([]);
+})();
+</script>
+</body>
+</html>
