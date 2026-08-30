@@ -287,17 +287,20 @@
   zoomOutBtn.addEventListener('click', function(){ if(scale > MIN_SCALE){ scale = Math.max(scale - SCALE_STEP, MIN_SCALE); reRender(); } });
   fitBtn.addEventListener('click', function(){ scale = 1.0; reRender(); });
 
-  zoomDisplay.addEventListener('change', function(){
-    var val = parseInt(zoomDisplay.value.replace('%',''), 10);
-    if(!isNaN(val)){
-      scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, val / 100));
-      reRender();
-    } else {
-      zoomDisplay.value = Math.round(scale * 100) + '%';
+  zoomDisplay.addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      var val = parseInt(zoomDisplay.value.replace('%',''), 10);
+      if(!isNaN(val)){
+        scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, val / 100));
+        reRender();
+      } else {
+        zoomDisplay.value = Math.round(scale * 100) + '%';
+      }
     }
   });
-  zoomDisplay.addEventListener('keydown', function(e){
-    if(e.key === 'Enter'){ e.preventDefault(); zoomDisplay.blur(); }
+  zoomDisplay.addEventListener('blur', function(){
+    zoomDisplay.value = Math.round(scale * 100) + '%';
   });
 
   rotateCwBtn.addEventListener('click', function(){ rotation = (rotation + 90) % 360; reRender(); });
