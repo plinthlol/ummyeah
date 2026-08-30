@@ -3,25 +3,20 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tissues — Plant Anatomy</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<title>Plant Anatomy — PDF</title>
 <script>
-  // Applied before first paint to avoid a flash of dark mode.
-  // Defaults to light mode until index.html has switched to dark.
-  // Reads the SAME localStorage key as index.html, so a note opened
-  // standalone (same origin) already matches whatever the app was set to.
-  // When opened *inside* the app's iframe, index.html overrides this
-  // live — this is only the fallback for opening the file directly.
   (function(){
     try{
       var saved = localStorage.getItem('academis-theme');
       if(saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
-    } catch(e){ /* localStorage unavailable — default to light */ }
+    } catch(e){}
   })();
 </script>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><rect width='48' height='48' rx='11' fill='%232563EB'/><path d='M15 10h13l7 7v20a1.6 1.6 0 0 1-1.6 1.6H15a1.6 1.6 0 0 1-1.6-1.6V11.6A1.6 1.6 0 0 1 15 10Z' fill='%23F6F8FA'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   :root{
     --bg:#F6F8FA;
@@ -32,21 +27,10 @@
     --ink:#17212B;
     --ink-dim:#66737F;
     --ink-faint:#9AA5AF;
-    --folder:#64748B;
-
-    --note:#2563EB;        --note-soft:rgba(37,99,235,0.08);
-    --good:#1F9D6B;         --good-soft:rgba(31,157,107,0.1);
-    --info:#6366F1;         --info-soft:rgba(99,102,241,0.1);
-    --warn:#D97706;         --warn-soft:rgba(217,119,6,0.1);
-    --danger:#DC4C4C;       --danger-soft:rgba(220,76,76,0.08);
-    --success:#0D9488;      --success-soft:rgba(13,148,136,0.1);
-
-    /* code blocks stay dark-on-light in both themes, so these are separate
-       from --ink/--surface rather than reusing them */
-    --code-bg:#17212B;
-    --code-fg:#E7EBEF;
+    --note:#2563EB;
+    --note-soft:rgba(37,99,235,0.1);
+    --danger:#DC4C4C;
   }
-
   :root[data-theme="dark"]{
     --bg:#10151B;
     --surface:#181F27;
@@ -56,1069 +40,269 @@
     --ink:#E6EDF3;
     --ink-dim:#8B98A5;
     --ink-faint:#586674;
-    --folder:#8593A3;
-
-    --note:#4C8DFF;         --note-soft:rgba(76,141,255,0.14);
-    --good:#3ECB8D;         --good-soft:rgba(62,203,141,0.14);
-    --info:#8B93F8;         --info-soft:rgba(139,147,248,0.14);
-    --warn:#E5A93F;         --warn-soft:rgba(229,169,63,0.14);
-    --danger:#F0665F;       --danger-soft:rgba(240,102,95,0.14);
-    --success:#2FBFAE;      --success-soft:rgba(47,191,174,0.14);
-
-    /* a shade darker than --surface so code blocks still stand out */
-    --code-bg:#0A0E13;
-    --code-fg:#E6EDF3;
+    --note:#4C8DFF;
+    --note-soft:rgba(76,141,255,0.14);
+    --danger:#F0665F;
   }
-
   *{ box-sizing:border-box; }
-  html{ scroll-behavior:smooth; }
-  @media (prefers-reduced-motion: reduce){ html{ scroll-behavior:auto; } }
+  html,body{ height:100%; margin:0; }
   body{
-    margin:0;
-    background:var(--bg);
-    color:var(--ink);
+    background:var(--bg); color:var(--ink);
     font-family:'JetBrains Mono', ui-monospace, monospace;
-    font-size:17px;
-    line-height:1.65;
-    -webkit-font-smoothing:antialiased;
+    font-size:14px; display:flex; flex-direction:column; overflow:hidden;
   }
-
-  .back-to-top{
-    position:fixed;
-    bottom:18px;
-    right:18px;
-    width:34px;
-    height:34px;
-    border-radius:8px;
-    background:var(--surface);
-    border:1px solid var(--border);
-    color:var(--ink-dim);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    cursor:pointer;
-    box-shadow:0 2px 10px rgba(23,33,43,0.15);
-    z-index:50;
-    text-decoration:none;
+  .toolbar{
+    display:flex; align-items:center; gap:6px; padding:8px 14px;
+    background:var(--surface); border-bottom:1px solid var(--border-soft);
+    flex-shrink:0; flex-wrap:wrap;
   }
-  .back-to-top:hover{ color:var(--ink); border-color:var(--note); }
-  .back-to-top svg{ width:16px; height:16px; }
-
-  /* ── ink / doodle layer ─────────────────────────────────*/
-  .ink-canvas{
-    position:absolute;
-    top:0; left:0;
-    pointer-events:none;
-    z-index:5;
-  }
-  .ink-canvas.active{ pointer-events:auto; cursor:crosshair; }
-
-  .canvas-toggle-btn{
-    position:fixed;
-    bottom:62px;
-    right:18px;
-    width:34px;
-    height:34px;
-    border-radius:8px;
-    background:var(--surface);
-    border:1px solid var(--border);
-    color:var(--ink-dim);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    cursor:pointer;
-    box-shadow:0 2px 10px rgba(23,33,43,0.15);
-    z-index:50;
-  }
-  .canvas-toggle-btn:hover{ color:var(--ink); border-color:var(--note); }
-  .canvas-toggle-btn.active{ color:var(--surface); background:var(--note); border-color:var(--note); }
-  .canvas-toggle-btn svg{ width:16px; height:16px; }
-
-  .ink-toolbar{
-    position:fixed;
-    top:14px;
-    left:50%;
-    transform:translateX(-50%);
-    display:flex;
-    align-items:center;
-    gap:4px;
-    padding:6px;
-    background:var(--surface);
-    border:1px solid var(--border);
-    border-radius:10px;
-    box-shadow:0 4px 16px rgba(23,33,43,0.18);
-    z-index:60;
-  }
-  .ink-toolbar[hidden]{ display:none; }
-  .ink-toolbar .ink-btn{
+  .group{ display:flex; align-items:center; gap:4px; }
+  .sep{ width:1px; height:22px; background:var(--border-soft); margin:0 4px; }
+  .btn{
     display:flex; align-items:center; justify-content:center;
-    width:30px; height:30px;
-    border-radius:7px;
-    color:var(--ink-dim);
-    cursor:pointer;
-    border:1px solid transparent;
+    min-width:30px; height:30px; padding:0 8px; border-radius:6px;
+    color:var(--ink-dim); cursor:pointer; border:1px solid transparent;
+    background:none; font-family:inherit; font-size:13px; gap:5px; white-space:nowrap;
   }
-  .ink-toolbar .ink-btn:hover{ color:var(--ink); background:var(--surface-hover); }
-  .ink-toolbar .ink-btn.sel{ color:var(--note); background:var(--note-soft); border-color:var(--note-soft); }
-  .ink-toolbar .ink-btn svg{ width:16px; height:16px; }
-  .ink-toolbar .ink-sep{ width:1px; height:20px; background:var(--border-soft); margin:0 2px; }
-  .ink-toolbar .ink-swatch{
-    width:18px; height:18px;
-    border-radius:50%;
-    cursor:pointer;
-    border:2px solid var(--surface);
-    box-shadow:0 0 0 1px var(--border);
+  .btn:hover{ color:var(--ink); background:var(--surface-hover); border-color:var(--border-soft); }
+  .btn:active{ transform:scale(0.96); }
+  .btn svg{ width:15px; height:15px; flex-shrink:0; }
+  .btn:disabled{ opacity:0.3; cursor:default; pointer-events:none; }
+  .page-info{ display:flex; align-items:center; gap:4px; font-size:13px; color:var(--ink-dim); }
+  .page-info input{
+    width:44px; text-align:center; font-family:inherit; font-size:13px;
+    color:var(--ink); background:var(--bg); border:1px solid var(--border);
+    border-radius:5px; padding:4px 2px; outline:none;
   }
-  .ink-toolbar .ink-swatch.sel{ box-shadow:0 0 0 2px var(--note); }
-  .ink-toolbar input[type="color"]{
-    width:20px; height:20px;
-    padding:0;
-    border:none;
-    background:none;
-    cursor:pointer;
+  .page-info input:focus{ border-color:var(--note); }
+  .page-info .total{ color:var(--ink-faint); }
+  .zoom-display{ font-size:12px; color:var(--ink-faint); min-width:42px; text-align:center; font-variant-numeric:tabular-nums; }
+  .viewer{
+    flex:1; overflow:auto; display:flex; flex-direction:column;
+    align-items:center; padding:20px; gap:20px;
   }
-  .ink-toolbar input[type="range"]{
-    width:64px;
-    accent-color:var(--note);
-    cursor:pointer;
+  .page-canvas-wrap{ position:relative; }
+  .page-canvas-wrap canvas{
+    display:block; box-shadow:0 2px 16px rgba(23,33,43,0.12); border-radius:4px;
   }
-
-  /* small inline arrow that appears next to whichever heading you just
-     jumped to — click it to return to exactly where you jumped from */
-  .jump-return{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    width:26px;
-    height:26px;
-    margin-left:5px;
-    border-radius:7px;
-    background:var(--note-soft);
-    color:var(--note);
-    border:none;
-    cursor:pointer;
-    vertical-align:top;
-    position:relative;
-    top:-3px;
-    flex-shrink:0;
+  :root[data-theme="dark"] .page-canvas-wrap canvas{ box-shadow:0 2px 16px rgba(0,0,0,0.4); }
+  .status{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    height:100%; gap:14px; color:var(--ink-faint); text-align:center; padding:20px;
   }
-  .jump-return:hover{ background:var(--note); color:var(--surface); }
-  .jump-return svg{ width:17px; height:17px; }
-
-  .page{
-    max-width:840px;
-    margin:0 auto;
-    padding:44px 32px 64px;
+  .status .msg{ font-size:15px; color:var(--ink-dim); }
+  .status .msg b{ color:var(--danger); }
+  .spinner{
+    width:28px; height:28px; border:3px solid var(--border-soft);
+    border-top-color:var(--note); border-radius:50%; animation:spin .7s linear infinite;
   }
-
-  /* ── headings ────────────────────────────────────────── */
-  h1{
-    font-size:32px;
-    font-weight:700;
-    letter-spacing:-0.01em;
-    margin:0 0 6px;
-  }
-  .subtitle{
-    color:var(--ink-dim);
-    font-size:15.5px;
-    margin:0 0 28px;
-  }
-  h2{
-    font-size:22px;
-    font-weight:700;
-    margin:38px 0 14px;
-    padding-bottom:8px;
-    border-bottom:1px solid var(--border-soft);
-    scroll-margin-top:24px;
-  }
-  h2:target{
-    animation:jump-highlight 1.8s ease-out;
-    border-radius:6px;
-  }
-  @keyframes jump-highlight{
-    0%{ background:var(--note-soft); box-shadow:0 0 0 8px var(--note-soft); }
-    100%{ background:transparent; box-shadow:0 0 0 8px transparent; }
-  }
-  h3{
-    font-size:17.5px;
-    font-weight:700;
-    color:var(--note);
-    margin:22px 0 9px;
-  }
-
-  p{ margin:0 0 13px; }
-  a{ color:var(--note); text-decoration:none; border-bottom:1px solid var(--note-soft); }
-  a:hover{ border-bottom-color:var(--note); }
-  a.note-link{
-    border-bottom-style:dashed;
-  }
-  a.note-link::before{
-    content:'↳ ';
-    color:var(--ink-faint);
-  }
-
-  strong{ font-weight:700; }
-  em{ color:var(--ink-dim); }
-  s{ color:var(--ink-faint); }
-  u{ text-decoration-color:var(--note); text-underline-offset:3px; }
-  mark{
-    background:var(--note-soft);
-    color:var(--ink);
-    padding:1px 4px;
-    border-radius:3px;
-  }
-
-  /* ── lists ───────────────────────────────────────────── */
-  ul, ol{ margin:0 0 15px; padding-left:24px; }
-  li{ margin-bottom:5px; }
-  li::marker{ color:var(--note); }
-  ul.plain{ list-style:none; padding-left:0; }
-  ul.plain li{ padding-left:20px; position:relative; }
-  ul.plain li::before{
-    content:'›';
-    position:absolute; left:0; color:var(--note); font-weight:700;
-  }
-
-  /* ── task list (visual only — notes are read-only) ─────*/
-  .tasks{ list-style:none; padding-left:0; margin:0 0 15px; }
-  .tasks li{
-    display:flex; align-items:flex-start; gap:10px;
-    margin-bottom:7px;
-  }
-  .box{
-    flex-shrink:0;
-    width:18px; height:18px;
-    border:1.5px solid var(--border);
-    border-radius:5px;
-    margin-top:2px;
-  }
-  .box.done{
-    background:var(--good);
-    border-color:var(--good);
-    position:relative;
-  }
-  .box.done::after{
-    content:'';
-    position:absolute; left:5px; top:2px;
-    width:4px; height:8px;
-    border:solid #FFFFFF;
-    border-width:0 1.8px 1.8px 0;
-    transform:rotate(45deg);
-  }
-  .tasks li.done span:last-child{ color:var(--ink-faint); text-decoration:line-through; }
-
-  /* ── blockquote ──────────────────────────────────────── */
-  blockquote{
-    margin:0 0 15px;
-    padding:11px 15px;
-    border-left:3px solid var(--note);
-    background:var(--note-soft);
-    color:var(--ink-dim);
-    border-radius:0 6px 6px 0;
-  }
-  cite{
-    display:block;
-    margin-top:8px;
-    font-style:normal;
-    font-size:14.5px;
-    color:var(--ink-faint);
-  }
-
-  /* ── callouts ────────────────────────────────────────── */
-  .callout{
-    display:flex; gap:10px;
-    padding:11px 14px;
-    border-radius:8px;
-    border:1px solid var(--border-soft);
-    background:var(--surface);
-    margin:0 0 9px;
-    font-size:15px;
-  }
-  .callout .label{
-    font-weight:700;
-    font-size:12.5px;
-    letter-spacing:0.06em;
-    text-transform:uppercase;
-    display:block;
-    margin-bottom:2px;
-  }
-  .callout.note{ border-left:3px solid var(--note); }
-  .callout.note .label{ color:var(--note); }
-  .callout.tip{ border-left:3px solid var(--good); }
-  .callout.tip .label{ color:var(--good); }
-  .callout.info{ border-left:3px solid var(--info); }
-  .callout.info .label{ color:var(--info); }
-  .callout.warning{ border-left:3px solid var(--warn); }
-  .callout.warning .label{ color:var(--warn); }
-  .callout.danger{ border-left:3px solid var(--danger); }
-  .callout.danger .label{ color:var(--danger); }
-  .callout.success{ border-left:3px solid var(--success); }
-  .callout.success .label{ color:var(--success); }
-
-  /* ── code ────────────────────────────────────────────── */
-  code{
-    font-family:inherit;
-    background:var(--surface-hover);
-    border:1px solid var(--border-soft);
-    border-radius:4px;
-    padding:2px 6px;
-    font-size:16px;
-  }
-  pre{
-    background:var(--code-bg);
-    color:var(--code-fg);
-    border-radius:8px;
-    padding:15px 17px;
-    overflow-x:auto;
-    margin:0 0 15px;
-    font-size:15px;
-    line-height:1.6;
-  }
-  pre code{ background:none; border:none; padding:0; color:inherit; }
-  .tok-key{ color:#7FB0FF; }
-  .tok-str{ color:#9FD6A0; }
-  .tok-com{ color:#7A8794; }
-
-  /* ── table ───────────────────────────────────────────── */
-  table{
-    width:100%;
-    border-collapse:collapse;
-    margin:0 0 15px;
-    font-size:15px;
-  }
-  th, td{
-    text-align:left;
-    padding:8px 10px;
-    border-bottom:1px solid var(--border-soft);
-  }
-  th{
-    color:var(--ink-dim);
-    font-weight:700;
-    font-size:14.5px;
-    text-transform:uppercase;
-    letter-spacing:0.04em;
-  }
-  tr:last-child td{ border-bottom:none; }
-  td.tag{
-    display:inline-block;
-    font-size:14px;
-    padding:3px 9px;
-    border-radius:20px;
-  }
-  .tag.ok{ background:var(--good-soft); color:var(--good); }
-  .tag.risk{ background:var(--danger-soft); color:var(--danger); }
-  .tag.wait{ background:var(--note-soft); color:var(--note); }
-
-  /* ── table of contents ──────────────────────────────────*/
-  .toc{
-    display:flex;
-    flex-wrap:wrap;
-    align-items:center;
-    gap:6px 4px;
-    padding:12px 14px;
-    background:var(--surface);
-    border:1px solid var(--border-soft);
-    border-radius:10px;
-    margin:0 0 18px;
-  }
-  .toc-label{
-    font-size:12px;
-    font-weight:700;
-    letter-spacing:0.06em;
-    text-transform:uppercase;
-    color:var(--ink-faint);
-    margin-right:6px;
-  }
-  .toc a{
-    font-size:14.5px;
-    color:var(--ink-dim);
-    background:var(--surface-hover);
-    border:1px solid transparent;
-    border-bottom:1px solid transparent;
-    border-radius:20px;
-    padding:4px 11px;
-  }
-  .toc a:hover{ color:var(--note); border-color:var(--note-soft); }
-
-  /* ── divider ─────────────────────────────────────────── */
-  hr{
-    border:none;
-    border-top:1px solid var(--border-soft);
-    margin:28px 0;
-  }
-
-  /* ── figure / diagram / image card ──────────────────────*/
-  figure{
-    margin:0 0 15px;
-    padding:16px;
-    background:var(--surface);
-    border:1px solid var(--border-soft);
-    border-radius:10px;
-  }
-  figure img, figure svg{ display:block; width:100%; border-radius:6px; }
-  figcaption{
-    margin-top:12px;
-    font-size:15px;
-    color:var(--ink-dim);
-    text-align:center;
-  }
-
-  .kbd{
-    font-family:inherit;
-    font-size:14.5px;
-    padding:2px 7px;
-    border:1px solid var(--border);
-    border-bottom-width:2px;
-    border-radius:4px;
-    background:var(--surface);
-  }
-
-  /* ── math ────────────────────────────────────────────── */
-  .math{
-    background:var(--surface);
-    border:1px solid var(--border-soft);
-    border-radius:10px;
-    padding:18px 15px;
-    text-align:center;
-    margin:0 0 15px;
-  }
-  .math .katex{ font-size:1.15em; color:var(--ink); }
-  .math .katex .mfrac line{ border-color:var(--ink); }
-  .math .label{
-    display:block;
-    font-size:14px;
-    color:var(--ink-dim);
-    margin-top:12px;
-    font-style:italic;
-    font-family:'JetBrains Mono', ui-monospace, monospace;
-  }
-
-  /* ── definition list ─────────────────────────────────── */
-  dl{ margin:0 0 15px; }
-  dt{
-    font-weight:700;
-    color:var(--note);
-    margin-top:10px;
-  }
-  dt:first-child{ margin-top:0; }
-  dd{ margin:4px 0 0; color:var(--ink-dim); }
-
-  /* ── expandable / details ───────────────────────────────*/
-  details{
-    margin:0 0 9px;
-    padding:11px 15px;
-    background:var(--surface);
-    border:1px solid var(--border-soft);
-    border-radius:10px;
-  }
-  details[open]{ padding-bottom:14px; }
-  summary{
-    cursor:pointer;
-    font-weight:700;
-    list-style:none;
-    display:flex;
-    align-items:center;
-    gap:8px;
-  }
-  summary::-webkit-details-marker{ display:none; }
-  summary::before{
-    content:'▸';
-    color:var(--note);
-    transition:transform 0.15s ease;
-    display:inline-block;
-  }
-  details[open] summary::before{ transform:rotate(90deg); }
-  details p{ margin:14px 0 0; }
-
-  /* ── references ──────────────────────────────────────── */
-  .refs{ list-style:none; padding-left:0; margin:0; }
-  .refs li{
-    display:flex; gap:9px;
-    margin-bottom:7px;
-    color:var(--ink-dim);
-  }
-  .refs .idx{ color:var(--ink-faint); flex-shrink:0; }
-
-  /* ── heading-scale preview (illustrative only) ──────────*/
-  .heading-demo{
-    border:1px solid var(--border-soft);
-    border-radius:10px;
-    background:var(--surface);
-    padding:15px 17px;
-    margin:0 0 15px;
-  }
-  .heading-demo .row{ padding:10px 0; border-bottom:1px solid var(--border-soft); }
-  .heading-demo .row:last-child{ border-bottom:none; padding-bottom:0; }
-  .heading-demo .row:first-child{ padding-top:0; }
-  .h-tag{ font-size:12px; color:var(--ink-faint); margin-right:10px; }
-  .demo-h1{ font-size:33px; font-weight:700; letter-spacing:-0.01em; }
-  .demo-h2{ font-size:22px; font-weight:700; }
-  .demo-h3{ font-size:17.5px; font-weight:700; color:var(--note); }
-
-  /* ── two-column difference comparison ───────────────────*/
-  .diff{
-    border:1px solid var(--border-soft);
-    border-radius:10px;
-    overflow:hidden;
-    margin:0 0 18px;
-    background:var(--surface);
-  }
-  .diff-head, .diff-row{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-  }
-  .diff-head span{
-    padding:10px 14px;
-    font-weight:700;
-    font-size:14px;
-    letter-spacing:0.05em;
-    text-transform:uppercase;
-  }
-  .diff-row > div{
-    padding:9px 14px;
-    font-size:15px;
-    color:var(--ink);
-    border-top:1px solid var(--border-soft);
-  }
-  .diff-head span:first-child, .diff-row > div:first-child{
-    border-right:1px solid var(--border-soft);
-  }
-  .diff-a .diff-head span:first-child{ color:var(--note); background:var(--note-soft); }
-  .diff-a .diff-head span:last-child{ color:var(--warn); background:var(--warn-soft); }
-  .diff-b .diff-head span:first-child{ color:var(--info); background:var(--info-soft); }
-  .diff-b .diff-head span:last-child{ color:var(--success); background:var(--success-soft); }
-  @media (max-width:480px){
-    .diff-head, .diff-row{ grid-template-columns:1fr; }
-    .diff-head span:first-child, .diff-row > div:first-child{ border-right:none; }
-  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce){ *{ animation:none !important; } }
 </style>
 </head>
 <body>
 
-<a class="back-to-top" href="#" title="back to top">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
-</a>
-
-<canvas class="ink-canvas" id="inkCanvas"></canvas>
-
-<button type="button" class="canvas-toggle-btn" id="inkToggleBtn" title="draw on this note">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.06 11.9l8.27-8.26a2.5 2.5 0 1 1 3.54 3.54l-8.27 8.27"/><path d="M4 20c1-1 1-2.5 0-3.5 1.5-1 3.5-1 4.5.5.7 1 .7 2.2 0 3-1 1.13-3.5 1-4.5 0Z"/></svg>
-</button>
-
-<div class="ink-toolbar" id="inkToolbar" hidden>
-  <div class="ink-btn sel" id="inkToolBrush" data-tool="brush" title="brush">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.06 11.9l8.27-8.26a2.5 2.5 0 1 1 3.54 3.54l-8.27 8.27"/><path d="M4 20c1-1 1-2.5 0-3.5 1.5-1 3.5-1 4.5.5.7 1 .7 2.2 0 3-1 1.13-3.5 1-4.5 0Z"/></svg>
+<div class="toolbar">
+  <div class="group">
+    <button class="btn" id="prevBtn" title="previous page (arrow left)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div class="page-info">
+      <input id="pageInput" type="number" min="1" value="1" />
+      <span class="total" id="pageTotal">/ 0</span>
+    </div>
+    <button class="btn" id="nextBtn" title="next page (arrow right)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
   </div>
-  <div class="ink-btn" id="inkToolEraser" data-tool="eraser" title="eraser">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H8.5L3.5 15a1.5 1.5 0 0 1 0-2.12l7-7a1.5 1.5 0 0 1 2.12 0l6 6a1.5 1.5 0 0 1 0 2.12L13.5 20"/><line x1="10.5" y1="12" x2="17" y2="18.5"/></svg>
+  <div class="sep"></div>
+  <div class="group">
+    <button class="btn" id="zoomOutBtn" title="zoom out (-)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+    </button>
+    <div class="zoom-display" id="zoomDisplay">100%</div>
+    <button class="btn" id="zoomInBtn" title="zoom in (+)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+    </button>
+    <button class="btn" id="fitBtn" title="fit to width (0)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
+    </button>
   </div>
-  <div class="ink-sep"></div>
-  <div class="ink-swatch sel" data-color="#DC4C4C" style="background:#DC4C4C" title="red"></div>
-  <div class="ink-swatch" data-color="#2563EB" style="background:#2563EB" title="blue"></div>
-  <div class="ink-swatch" data-color="#1F9D6B" style="background:#1F9D6B" title="green"></div>
-  <div class="ink-swatch" data-color="#D97706" style="background:#D97706" title="amber"></div>
-  <div class="ink-swatch" data-color="#17212B" style="background:#17212B" title="ink"></div>
-  <input type="color" id="inkColorCustom" value="#DC4C4C" title="custom color">
-  <div class="ink-sep"></div>
-  <input type="range" id="inkSize" min="2" max="24" value="5" title="brush size">
-  <div class="ink-sep"></div>
-  <div class="ink-btn" id="inkClear" title="clear this note's drawing">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-  </div>
-  <div class="ink-btn" id="inkExit" title="exit drawing mode">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  <div class="sep"></div>
+  <div class="group">
+    <button class="btn" id="rotateCcwBtn" title="rotate left (Shift+R)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 2v6h6"/><path d="M2.66 15.57a10 10 0 1 0 .57-8.38"/></svg>
+    </button>
+    <button class="btn" id="rotateCwBtn" title="rotate right (R)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38"/></svg>
+    </button>
   </div>
 </div>
 
-<div class="page">
-
-  <h1>Tissues</h1>
-  <p class="subtitle">Plant Anatomy — meristematic &amp; permanent tissues, xylem/phloem, and internal structure of dicot &amp; monocot organs</p>
-
-  <nav class="toc" aria-label="table of contents">
-    <span class="toc-label">Contents</span>
-    <a href="#definition">Definition</a>
-    <a href="#meristematic-tissue">Meristematic Tissue</a>
-    <a href="#permanent-tissue">Permanent Tissue</a>
-    <a href="#simple-permanent">Simple Permanent</a>
-    <a href="#complex-permanent">Complex Permanent</a>
-    <a href="#differences">Key Differences</a>
-    <a href="#dicot-stem">Dicot Stem</a>
-    <a href="#dicot-root">Dicot Root</a>
-    <a href="#monocot-stem">Monocot Stem</a>
-  </nav>
-
-  <h2 id="definition">Definition</h2>
-
-  <p><strong>Tissue</strong> (coined by Grew): a group of cells having a similar origin, structure and function.</p>
-
-  <p>Tissues are classified along two independent axes:</p>
-
-  <ul>
-    <li>By constitution of cells: <strong>Simple</strong> (made up of similar cells) or <strong>Complex</strong> (made up of two or more types of cells)</li>
-    <li>By capacity of division: <strong>Meristematic</strong> or <strong>Permanent</strong></li>
-  </ul>
-
-  <h2 id="meristematic-tissue">Meristematic Tissue</h2>
-
-  <p>A group of cells which remain in a continuous state of division, or retain their power of division. Composed of immature cells; intercellular spaces are usually absent. Cells may be rounded, oval, or polygonal.</p>
-
-  <p>Meristematic tissues are classified on the basis of origin, position, and function:</p>
-
-  <h3>On the basis of origin</h3>
-  <dl>
-    <dt>Primordial meristem (promeristem)</dt>
-    <dd>originates from the embryo; found at the apices of shoots and roots</dd>
-    <dt>Primary meristem</dt>
-    <dd>originates from the promeristem; found below it at shoot and root apices</dd>
-    <dt>Secondary meristem</dt>
-    <dd>not present from the start of organ formation but develops later; gives rise to secondary permanent tissues</dd>
-  </dl>
-
-  <h3>On the basis of position</h3>
-  <dl>
-    <dt>Apical meristem</dt>
-    <dd>present at the growing points/apices of stems, roots and branches; adds to the length of the plant or its parts</dd>
-    <dt>Intercalary meristem</dt>
-    <dd>the portion of apical meristem separated from the apex during growth, remaining intercalated between permanent cells</dd>
-    <dt>Lateral meristem</dt>
-    <dd>present along the side of the stem; produces new vascular tissue on either side and adds to thickness</dd>
-  </dl>
-
-  <h3>On the basis of function</h3>
-  <dl>
-    <dt>Protoderm</dt>
-    <dd>outermost meristematic cells; give rise to the epidermis of developing organs</dd>
-    <dt>Procambium</dt>
-    <dd>innermost meristematic cells; give rise to primary vascular tissue by differentiation</dd>
-    <dt>Ground meristem</dt>
-    <dd>gives rise to hypodermis, cortex, endodermis, pericycle, pith and medullary rays</dd>
-  </dl>
-
-  <h2 id="permanent-tissue">Permanent Tissue</h2>
-
-  <p>A group of cells that has lost the power of division and growth, and has attained a definite form and size. Cells may be dead or living, thin-walled or thick-walled.</p>
-
-  <figure>
-    <svg viewBox="0 0 700 230">
-      <defs>
-        <marker id="arrowP" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
-          <path d="M0,0 L8,4 L0,8 Z" fill="#66737F"/>
-        </marker>
-      </defs>
-      <g font-family="JetBrains Mono, monospace" font-size="14.5">
-        <rect x="270" y="10" width="160" height="38" rx="8" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.6"/>
-        <text x="350" y="34" text-anchor="middle" fill="#17212B">Permanent Tissue</text>
-
-        <line x1="330" y1="48" x2="150" y2="88" stroke="#66737F" stroke-width="1.6" marker-end="url(#arrowP)"/>
-        <line x1="370" y1="48" x2="550" y2="88" stroke="#66737F" stroke-width="1.6" marker-end="url(#arrowP)"/>
-
-        <rect x="70" y="92" width="160" height="38" rx="8" fill="#FFFFFF" stroke="#64748B" stroke-width="1.6"/>
-        <text x="150" y="116" text-anchor="middle" fill="#17212B">Simple</text>
-        <rect x="470" y="92" width="160" height="38" rx="8" fill="#FFFFFF" stroke="#64748B" stroke-width="1.6"/>
-        <text x="550" y="116" text-anchor="middle" fill="#17212B">Complex</text>
-
-        <line x1="150" y1="130" x2="150" y2="170" stroke="#66737F" stroke-width="1.6" marker-end="url(#arrowP)"/>
-        <line x1="550" y1="130" x2="550" y2="170" stroke="#66737F" stroke-width="1.6" marker-end="url(#arrowP)"/>
-
-        <rect x="30" y="174" width="240" height="46" rx="8" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.6"/>
-        <text x="150" y="193" text-anchor="middle" fill="#17212B">Parenchyma</text>
-        <text x="150" y="211" text-anchor="middle" fill="#17212B">Collenchyma · Sclerenchyma</text>
-
-        <rect x="450" y="174" width="200" height="46" rx="8" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.6"/>
-        <text x="550" y="200" text-anchor="middle" fill="#17212B">Xylem · Phloem</text>
-      </g>
-    </svg>
-    <figcaption>Fig. 1 — classification of permanent tissue</figcaption>
-  </figure>
-
-  <h2 id="simple-permanent">Simple Permanent Tissues</h2>
-
-  <h3>Parenchyma</h3>
-  <ul>
-    <li>Thin-walled living cells, oval, spherical or polygonal in shape</li>
-    <li>Walls made of cellulose, hemicellulose and pectin</li>
-    <li>Contain a large vacuole, with intercellular spaces between cells</li>
-    <li>May contain chloroplasts and carry out photosynthesis</li>
-    <li>Serve mainly for storage of food (starches, proteins, oils and fats)</li>
-  </ul>
-
-  <h3>Collenchyma</h3>
-  <ul>
-    <li>Thick-walled living cells; thickening due to deposition of hemicellulose and pectin</li>
-    <li>May contain chloroplasts and carry out photosynthesis</li>
-    <li>Occurs in the stem of herbaceous dicotyledons and forms hydathodes</li>
-    <li>Provides both mechanical strength and flexibility; prevents tearing of leaves at the margin</li>
-  </ul>
-
-  <h3>Sclerenchyma</h3>
-  <ul>
-    <li>Thick-walled dead cells with a purely mechanical function — give strength and rigidity to the plant body</li>
-    <li>Two types: <strong>fibres</strong> (long, tapering at the ends, present in xylem of stem and roots) and <strong>sclereids</strong> (extremely thick-walled, spherical/oval/cylindrical, generally found in hard parts of the plant)</li>
-  </ul>
-
-  <figure>
-    <img src="assets/typesofsimpleplanttissue.png" alt="Parenchyma, collenchyma and sclerenchyma shown in cross-section and longitudinal view">
-    <figcaption>Fig. 2 — simple permanent tissues: parenchyma, collenchyma and sclerenchyma</figcaption>
-  </figure>
-
-  <h2 id="complex-permanent">Complex Permanent Tissues</h2>
-
-  <h3>Xylem</h3>
-  <p>A complex tissue mainly responsible for conduction of water; also known as wood. Composed of four kinds of cells: tracheids, vessels, xylem parenchyma and xylem fibres.</p>
-
-  <p>Depending on time of origin relative to growth of the organ, xylem is of two types:</p>
-
-  <table>
-    <thead>
-      <tr><th></th><th>Protoxylem</th><th>Metaxylem</th></tr>
-    </thead>
-    <tbody>
-      <tr><td>Formed</td><td>Early</td><td>Late</td></tr>
-      <tr><td>Vessels</td><td>Narrow</td><td>Large</td></tr>
-      <tr><td>Persistence</td><td>Short period</td><td>Long period</td></tr>
-      <tr><td>Fibres</td><td>Absent or rare</td><td>Often occur</td></tr>
-    </tbody>
-  </table>
-
-  <h3>Phloem</h3>
-  <p>A living complex tissue; its main function is to transport organic food inside the plant body — from the leaves to storage organs, and from storage organs to various parts. Consists of four types of elements: sieve tubes, companion cells, phloem parenchyma and bast fibres.</p>
-
-  <dl>
-    <dt>Primary phloem</dt>
-    <dd>develops from procambium; does not have radial differentiation</dd>
-    <dt>Secondary phloem</dt>
-    <dd>develops from cambium during secondary growth; shows radial differentiation</dd>
-  </dl>
-
-  <figure>
-    <img src="assets/typesofcomlexplanttissues.png" alt="Xylem and phloem cell types shown in cross-section">
-    <figcaption>Fig. 3 — complex permanent tissues: xylem and phloem</figcaption>
-  </figure>
-
-  <h2 id="differences">Key Differences</h2>
-
-  <h3>Xylem vs. Phloem</h3>
-  <div class="diff diff-a">
-    <div class="diff-head"><span>Xylem</span><span>Phloem</span></div>
-    <div class="diff-row"><div>Conducts water &amp; sap</div><div>Conducts organic food</div></div>
-    <div class="diff-row"><div>Provides mechanical strength</div><div>No mechanical function</div></div>
-    <div class="diff-row"><div>Conducting cells are dead</div><div>Conducting cells are living</div></div>
-    <div class="diff-row"><div>Conducting cells have lignin on their walls</div><div>Conducting cells don't have lignin</div></div>
-    <div class="diff-row"><div>Two types of conducting elements — vessels &amp; tracheids</div><div>One type of conducting element — sieve tubes</div></div>
-    <div class="diff-row"><div>Usually found deep in the plant</div><div>Usually found towards the outer side</div></div>
+<div class="viewer" id="viewer">
+  <div class="status" id="loadingStatus">
+    <div class="spinner"></div>
+    <div class="msg">Loading PDF…</div>
   </div>
-
-  <h3>Meristematic vs. Permanent Tissue</h3>
-  <div class="diff diff-b">
-    <div class="diff-head"><span>Meristematic Tissue</span><span>Permanent Tissue</span></div>
-    <div class="diff-row"><div>Simple tissue</div><div>May be simple or complex</div></div>
-    <div class="diff-row"><div>Cells small &amp; isodiametric</div><div>Cells of variable shape &amp; size, depending on function</div></div>
-    <div class="diff-row"><div>Intercellular spaces absent or very small</div><div>Intercellular spaces often conspicuous</div></div>
-    <div class="diff-row"><div>Vacuoles very small or absent</div><div>Living cells usually possess a large vacuole</div></div>
-    <div class="diff-row"><div>Metabolic activity high</div><div>Metabolic activity occurs at a low rate</div></div>
-    <div class="diff-row"><div>Cells able to divide repeatedly</div><div>Cells normally cannot divide</div></div>
-    <div class="diff-row"><div>Immature &amp; undifferentiated</div><div>Fully differentiated</div></div>
-  </div>
-
-  <h2 id="dicot-stem">Internal Structure of Dicot Stem</h2>
-
-  <figure>
-    <img src="assets/internalstructureofdicotstem.jpeg" alt="Transverse section of a dicot stem showing epidermis, cortex, vascular bundles and pith">
-    <figcaption>Fig. 4 — T.S. of a dicot stem</figcaption>
-  </figure>
-
-  <dl>
-    <dt>Epidermis</dt>
-    <dd>the outermost layer — a single row of parenchymatous cells, often bearing multicellular hairs and scattered stomata, coated in a waxy cuticle that keeps out fungal spores and bacteria, cuts down water loss, and leaves the stomata as the planned route for gas exchange.</dd>
-    <dt>Hypodermis</dt>
-    <dd>4–5 layers of collenchymatous cells just under the epidermis, their walls thickened at the corners with cellulose and pectin; the cells often carry chloroplasts, so the layer doubles as mechanical support and a bit of extra photosynthetic tissue.</dd>
-    <dt>General cortex</dt>
-    <dd>several layers of thin-walled, loosely packed parenchyma — oval, rounded or angular — with genuine intercellular spaces between them; its main job is simply storing food.</dd>
-    <dt>Endodermis</dt>
-    <dd>a single ring of barrel-shaped cells with no intercellular spaces, just inside the cortex. These cells are typically loaded with starch grains, which is why the layer is also called the starch sheath.</dd>
-    <dt>Pericycle</dt>
-    <dd>immediately inside the endodermis — a mix of sclerenchymatous cells with highly lignified walls (mechanical strength) and parenchymatous cells scattered between them (food storage).</dd>
-    <dt>Vascular bundles</dt>
-    <dd>conjoint, collateral and <strong>open</strong> — phloem sits to the outside, xylem to the inside, with a strip of cambium between them that keeps the option of secondary growth open, unlike the closed bundles of a monocot stem. The bundles sit in a single ring around the stem. Within each one, the xylem is <strong>endarch</strong>: protoxylem (narrow, formed early) points toward the centre and metaxylem (wider, formed later) toward the periphery, built from tracheids, vessels, xylem parenchyma and xylem fibres. Phloem, lying just below the sclerenchymatous pericycle, is made of sieve tubes, companion cells and phloem parenchyma.</dd>
-    <dt>Pith</dt>
-    <dd>fills the centre of the stem — thin-walled parenchyma with generous intercellular spaces, used for food storage.</dd>
-    <dt>Medullary (pith) rays</dt>
-    <dd>radially elongated parenchyma cells running between neighbouring vascular bundles, connecting pith to cortex and helping move food, water and gases between the two.</dd>
-  </dl>
-
-  <h2 id="dicot-root">Internal Structure of Dicot Root</h2>
-
-  <figure>
-    <img src="assets/internalstructureofdicotroot.jpeg" alt="Transverse section of a dicot root showing epiblema, cortex, endodermis and radial vascular bundles">
-    <figcaption>Fig. 5 — T.S. of a dicot root</figcaption>
-  </figure>
-
-  <dl>
-    <dt>Epidermis / piliferous layer / rhizodermis</dt>
-    <dd>outermost layer of the root; compactly arranged, thin-walled, elongated parenchymatous cells with no distinct cuticle or stomata. Many epidermal cells produce thin tubular root hairs (hence "piliferous"/"epiblema" layer); these absorb water and minerals from the soil.</dd>
-    <dt>Cortex</dt>
-    <dd>below the epiblema; many layers of thin-walled parenchyma cells, rounded or angular, enclosing intercellular spaces for gas diffusion. Stores food and conducts water from the epiblema to inner tissues.</dd>
-    <dt>Endodermis</dt>
-    <dd>innermost layer; a single layer of barrel-shaped, compact parenchymatous cells with no intercellular spaces. Radial and tangential walls are thickened with lignin and suberin — the casparian strips/bands — which regulate movement of fluid and air into and out of the stele.</dd>
-    <dt>Pericycle</dt>
-    <dd>one or more layers of thin-walled parenchymatous cells just inside the endodermis; helps in secondary growth, and all lateral roots originate from here.</dd>
-    <dt>Conjunctive tissue</dt>
-    <dd>parenchyma lying between the xylem and phloem bundles; becomes meristematic during secondary growth and forms the major part of the cambium.</dd>
-    <dt>Vascular bundles</dt>
-    <dd>xylem and phloem bundles alternate around the pericycle on the same radius — "radial bundles" — numbering 2–6. Each xylem bundle has smaller protoxylem toward the periphery and larger metaxylem toward the centre (an <strong>exarch</strong> arrangement); xylem conducts water and minerals and gives mechanical strength, and is made of vessels and a few tracheids. Between adjacent xylem bundles sits a phloem bundle (sieve tubes, companion cells, phloem parenchyma), which conducts organic food from shoot to root.</dd>
-    <dt>Pith</dt>
-    <dd>centre of the root; a few compactly arranged, thin-walled parenchymatous cells.</dd>
-  </dl>
-
-  <h2 id="monocot-stem">Internal Structure of Monocot Stem</h2>
-
-  <figure>
-    <img src="assets/internalstructureofmonocotstem.jpg" alt="Transverse section of a monocot stem showing scattered vascular bundles in ground tissue">
-    <figcaption>Fig. 6 — T.S. of a monocot stem</figcaption>
-  </figure>
-
-  <p>Monocot stems possess only primary permanent tissues, not arranged in concentric rings. A typical monocot stem consists of:</p>
-
-  <dl>
-    <dt>Epidermis</dt>
-    <dd>outermost single layer of small, thin-walled, somewhat barrel-shaped parenchymatous cells, tightly packed with no intercellular spaces; covered with a thick cuticle. Stomata are present; epidermal hairs (trichomes) are absent.</dd>
-    <dt>Hypodermis</dt>
-    <dd>just below the epidermis; a few layers of thick-walled, lignified sclerenchymatous cells with no intercellular spaces. Provides rigidity and mechanical strength.</dd>
-    <dt>Ground tissue</dt>
-    <dd>occupies almost the whole interior of the stem; parenchymatous cells, round or angular, enclosing intercellular spaces. Stores food, and some outer cells may contain chloroplasts and photosynthesize. There is no separation of this ground tissue into a distinct cortex, endodermis, pericycle and pith the way there is in a dicot stem — it's all one undifferentiated mass, with the vascular bundles embedded in it.</dd>
-    <dt>Vascular bundles</dt>
-    <dd>scattered irregularly through the ground tissue rather than arranged in a ring — an arrangement given its own name, <strong>atactostele</strong>. Each bundle is conjoint, collateral and closed: no cambium lies between the xylem and phloem, so (unlike a dicot stem) monocot stems normally show no secondary growth. Bundles toward the periphery are greater in number and smaller in size than those toward the centre. Each bundle is surrounded by a sheath of sclerenchyma cells called the bundle sheath, and consists of phloem toward the outer side and xylem toward the inner side.</dd>
-    <dt>Xylem (within each bundle)</dt>
-    <dd>Y-shaped, made up of bigger, pitted vessels of metaxylem forming the arms of the Y, and smaller, spiral or angular vessels of protoxylem below them. This is the same <strong>endarch</strong> orientation as a dicot stem — protoxylem toward the centre, metaxylem toward the periphery — just unrolled into scattered bundles instead of a ring. The lowest protoxylem element is often crushed by maturity, breaking down into a fluid-filled space called a <strong>lysigenous cavity</strong> (protoxylem cavity) at the base of the Y.</dd>
-    <dt>Phloem (within each bundle)</dt>
-    <dd>consists of sieve tubes, companion cells and a few phloem fibres — phloem parenchyma is absent.</dd>
-  </dl>
-
 </div>
 
 <script>
 (function(){
   'use strict';
-  // Clicking a "#anchor" link drops a small arrow right next to whichever
-  // heading it lands on. Click that arrow and it takes you back to
-  // exactly where you clicked from. Leave it alone and it just stays
-  // there — only a new jump elsewhere replaces it.
-  const ICON_ARROW_LEFT = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 13l-4 -4l4 -4"/><path d="M5 9h7a4 4 0 1 1 0 8h-1"/></svg>`;
-  let currentArrow = null;
 
-  function placeReturnArrow(target, returnY){
-    if(currentArrow) currentArrow.remove();
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'jump-return';
-    btn.title = 'back to where you jumped from';
-    btn.innerHTML = ICON_ARROW_LEFT;
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      window.scrollTo({ top: returnY, behavior: 'smooth' });
-      btn.remove();
-      if(currentArrow === btn) currentArrow = null;
-    });
-    target.appendChild(btn);
-    currentArrow = btn;
-  }
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-  document.querySelectorAll('a[href^="#"]').forEach(link => {
-    link.addEventListener('click', () => {
-      const id = link.getAttribute('href').slice(1);
-      if(!id) return; // plain href="#" (the back-to-top button) — nothing to mark
-      const target = document.getElementById(id);
-      if(!target) return;
-      placeReturnArrow(target, window.scrollY);
-    });
-  });
-})();
-</script>
+  var pdfDoc = null;
+  var currentPage = 1;
+  var totalPages = 0;
+  var scale = 1.0;
+  var rotation = 0;
+  var MIN_SCALE = 0.25;
+  var MAX_SCALE = 5.0;
+  var SCALE_STEP = 0.25;
 
-<script>
-(function(){
-  'use strict';
-  // Renders any \( \) inline math or \[ \] display math on the page
-  // using KaTeX, once the library has finished loading.
-  document.addEventListener('DOMContentLoaded', function(){
-    if(typeof renderMathInElement === 'function'){
-      renderMathInElement(document.body, {
-        delimiters: [
-          { left: '\\[', right: '\\]', display: true },
-          { left: '\\(', right: '\\)', display: false }
-        ]
-      });
+  var viewer = document.getElementById('viewer');
+  var pageInput = document.getElementById('pageInput');
+  var pageTotal = document.getElementById('pageTotal');
+  var zoomDisplay = document.getElementById('zoomDisplay');
+  var prevBtn = document.getElementById('prevBtn');
+  var nextBtn = document.getElementById('nextBtn');
+  var zoomInBtn = document.getElementById('zoomInBtn');
+  var zoomOutBtn = document.getElementById('zoomOutBtn');
+  var fitBtn = document.getElementById('fitBtn');
+  var rotateCwBtn = document.getElementById('rotateCwBtn');
+  var rotateCcwBtn = document.getElementById('rotateCcwBtn');
+
+  var pdfUrl = 'assets/plantanatomy.pdf';
+  var renderedPages = {};
+
+  function renderAllPages(){
+    if(!pdfDoc) return;
+    viewer.innerHTML = '';
+    renderedPages = {};
+
+    var chain = Promise.resolve();
+    for(var i = 1; i <= totalPages; i++){
+      (function(num){
+        chain = chain.then(function(){
+          return pdfDoc.getPage(num).then(function(page){
+            var baseViewport = page.getViewport({ scale: 1, rotation: rotation });
+            var wrap = document.createElement('div');
+            wrap.className = 'page-canvas-wrap';
+            wrap.setAttribute('data-page', num);
+
+            var viewerWidth = viewer.clientWidth - 40;
+            if(viewerWidth < 100) viewerWidth = 600;
+            var fitScale = (viewerWidth / baseViewport.width) * scale;
+            var viewport = page.getViewport({ scale: fitScale, rotation: rotation });
+
+            var canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            canvas.style.width = viewport.width + 'px';
+            canvas.style.height = viewport.height + 'px';
+
+            wrap.appendChild(canvas);
+            viewer.appendChild(wrap);
+
+            var ctx = canvas.getContext('2d');
+            return page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function(){
+              renderedPages[num] = wrap;
+            });
+          });
+        });
+      })(i);
     }
-  });
-})();
-</script>
-
-<script>
-(function(){
-  'use strict';
-  // A per-note doodle layer: draws on a transparent canvas positioned
-  // over the whole page (scrolls with it, not fixed to the viewport),
-  // and autosaves to localStorage keyed by this note's own URL path —
-  // so every note keeps its own drawing even though they all share one
-  // origin's localStorage.
-  const STORAGE_KEY = 'academis-ink:' + location.pathname;
-
-  const canvas = document.getElementById('inkCanvas');
-  const ctx = canvas.getContext('2d');
-  const toggleBtn = document.getElementById('inkToggleBtn');
-  const toolbar = document.getElementById('inkToolbar');
-  if(!canvas || !ctx || !toggleBtn || !toolbar) return;
-
-  let active = false;
-  let drawing = false;
-  let tool = 'brush';
-  let color = '#DC4C4C';
-  let size = 5;
-  let lastX = 0, lastY = 0;
-
-  function docSize(){
-    return {
-      w: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth, window.innerWidth),
-      h: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight, window.innerHeight)
-    };
+    chain.then(function(){ updateButtons(); setupObserver(); });
   }
 
-  // Resizing a <canvas> clears it, so grab what's on it first and paint
-  // it back afterwards — keeps existing strokes intact as the page grows.
-  function resizeCanvas(){
-    const { w, h } = docSize();
-    if(canvas.width === w && canvas.height === h) return;
-    let prev = null;
-    if(canvas.width && canvas.height){
-      try{ prev = canvas.toDataURL('image/png'); } catch(e){ prev = null; }
-    }
-    canvas.width = w;
-    canvas.height = h;
-    if(prev){
-      const img = new Image();
-      img.onload = () => ctx.drawImage(img, 0, 0);
-      img.src = prev;
-    }
+  function scrollToPage(num){
+    if(num < 1) num = 1;
+    if(num > totalPages) num = totalPages;
+    currentPage = num;
+    pageInput.value = num;
+    var wrap = renderedPages[num];
+    if(wrap) wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    updateButtons();
   }
 
-  function save(){
-    try{ localStorage.setItem(STORAGE_KEY, canvas.toDataURL('image/png')); }
-    catch(e){ /* storage full or unavailable (private mode, file://, etc.) — drawing just won't persist */ }
+  function updateButtons(){
+    prevBtn.disabled = currentPage <= 1;
+    nextBtn.disabled = currentPage >= totalPages;
+    zoomDisplay.textContent = Math.round(scale * 100) + '%';
   }
 
-  function loadSaved(){
-    let raw;
-    try{ raw = localStorage.getItem(STORAGE_KEY); } catch(e){ return; }
-    if(!raw) return;
-    const img = new Image();
-    img.onload = () => { resizeCanvas(); ctx.drawImage(img, 0, 0); };
-    img.src = raw;
+  var observer = null;
+  function setupObserver(){
+    if(observer) observer.disconnect();
+    observer = new IntersectionObserver(function(entries){
+      for(var i = 0; i < entries.length; i++){
+        if(entries[i].isIntersecting){
+          var num = parseInt(entries[i].target.getAttribute('data-page'), 10);
+          if(!isNaN(num)){ currentPage = num; pageInput.value = num; updateButtons(); }
+          break;
+        }
+      }
+    }, { root: viewer, threshold: 0.5 });
+    Object.keys(renderedPages).forEach(function(k){ observer.observe(renderedPages[k]); });
   }
 
-  function pointFromEvent(e){
-    const rect = canvas.getBoundingClientRect();
-    const t = e.touches && e.touches.length ? e.touches[0] : e;
-    return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+  function reRender(){
+    var savedPage = currentPage;
+    renderAllPages();
+    // scroll to saved page after a tick
+    setTimeout(function(){ scrollToPage(savedPage); }, 100);
   }
 
-  function startStroke(e){
-    if(!active) return;
-    e.preventDefault();
-    drawing = true;
-    const p = pointFromEvent(e);
-    lastX = p.x; lastY = p.y;
-    // a plain tap/click leaves a dot rather than nothing
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = size;
-    ctx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
-    ctx.strokeStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(lastX, lastY);
-    ctx.lineTo(lastX + 0.01, lastY + 0.01);
-    ctx.stroke();
-  }
-
-  function moveStroke(e){
-    if(!active || !drawing) return;
-    e.preventDefault();
-    const p = pointFromEvent(e);
-    ctx.beginPath();
-    ctx.moveTo(lastX, lastY);
-    ctx.lineTo(p.x, p.y);
-    ctx.stroke();
-    lastX = p.x; lastY = p.y;
-  }
-
-  function endStroke(){
-    if(!drawing) return;
-    drawing = false;
-    save();
-  }
-
-  canvas.addEventListener('mousedown', startStroke);
-  canvas.addEventListener('mousemove', moveStroke);
-  window.addEventListener('mouseup', endStroke);
-  canvas.addEventListener('touchstart', startStroke, { passive: false });
-  canvas.addEventListener('touchmove', moveStroke, { passive: false });
-  canvas.addEventListener('touchend', endStroke);
-  canvas.addEventListener('touchcancel', endStroke);
-
-  function setActive(next){
-    active = next;
-    canvas.classList.toggle('active', active);
-    toolbar.hidden = !active;
-    toggleBtn.classList.toggle('active', active);
-    toggleBtn.title = active ? 'exit drawing mode' : 'draw on this note';
-    if(active) resizeCanvas();
-  }
-
-  toggleBtn.addEventListener('click', () => setActive(!active));
-  const exitBtn = document.getElementById('inkExit');
-  if(exitBtn) exitBtn.addEventListener('click', () => setActive(false));
-
-  function selectTool(name){
-    tool = name;
-    toolbar.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('sel', b.getAttribute('data-tool') === name));
-  }
-  toolbar.querySelectorAll('[data-tool]').forEach(btn => {
-    btn.addEventListener('click', () => selectTool(btn.getAttribute('data-tool')));
-  });
-
-  const customColor = document.getElementById('inkColorCustom');
-  function selectColor(hex, swatchEl){
-    color = hex;
-    selectTool('brush');
-    toolbar.querySelectorAll('.ink-swatch').forEach(s => s.classList.toggle('sel', s === swatchEl));
-    if(customColor) customColor.value = hex;
-  }
-  toolbar.querySelectorAll('.ink-swatch').forEach(sw => {
-    sw.addEventListener('click', () => selectColor(sw.getAttribute('data-color'), sw));
-  });
-  if(customColor){
-    customColor.addEventListener('input', (e) => selectColor(e.target.value, null));
-  }
-
-  const sizeInput = document.getElementById('inkSize');
-  if(sizeInput){
-    sizeInput.addEventListener('input', (e) => { size = Number(e.target.value) || 5; });
-  }
-
-  const clearBtn = document.getElementById('inkClear');
-  if(clearBtn){
-    clearBtn.addEventListener('click', () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      save();
+  function loadPDF(){
+    pdfjsLib.getDocument(pdfUrl).promise.then(function(doc){
+      pdfDoc = doc;
+      totalPages = doc.numPages;
+      pageTotal.textContent = '/ ' + totalPages;
+      pageInput.max = totalPages;
+      renderAllPages();
+    }, function(err){
+      viewer.innerHTML =
+        '<div class="status">' +
+        '<div class="msg"><b>Could not load PDF</b></div>' +
+        '<div class="msg" style="font-size:13px;color:var(--ink-faint)">' + (err.message || 'Unknown error') + '</div>' +
+        '</div>';
     });
   }
 
-  window.addEventListener('resize', resizeCanvas);
-  resizeCanvas();
-  loadSaved();
+  prevBtn.addEventListener('click', function(){ if(currentPage > 1) scrollToPage(currentPage - 1); });
+  nextBtn.addEventListener('click', function(){ if(currentPage < totalPages) scrollToPage(currentPage + 1); });
+
+  pageInput.addEventListener('change', function(){
+    var n = parseInt(pageInput.value, 10);
+    if(!isNaN(n)) scrollToPage(n);
+  });
+  pageInput.addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){ e.preventDefault(); pageInput.blur(); pageInput.dispatchEvent(new Event('change')); }
+  });
+
+  zoomInBtn.addEventListener('click', function(){ if(scale < MAX_SCALE){ scale = Math.min(scale + SCALE_STEP, MAX_SCALE); reRender(); } });
+  zoomOutBtn.addEventListener('click', function(){ if(scale > MIN_SCALE){ scale = Math.max(scale - SCALE_STEP, MIN_SCALE); reRender(); } });
+  fitBtn.addEventListener('click', function(){ scale = 1.0; reRender(); });
+
+  rotateCwBtn.addEventListener('click', function(){ rotation = (rotation + 90) % 360; reRender(); });
+  rotateCcwBtn.addEventListener('click', function(){ rotation = (rotation + 270) % 360; reRender(); });
+
+  document.addEventListener('keydown', function(e){
+    if(e.target === pageInput) return;
+    switch(e.key){
+      case 'ArrowLeft': case 'ArrowUp': e.preventDefault(); prevBtn.click(); break;
+      case 'ArrowRight': case 'ArrowDown': e.preventDefault(); nextBtn.click(); break;
+      case '+': case '=': e.preventDefault(); zoomInBtn.click(); break;
+      case '-': e.preventDefault(); zoomOutBtn.click(); break;
+      case 'R': e.preventDefault(); (e.shiftKey ? rotateCcwBtn : rotateCwBtn).click(); break;
+      case '0': e.preventDefault(); fitBtn.click(); break;
+    }
+  });
+
+  loadPDF();
 })();
 </script>
-
 </body>
 </html>
-
