@@ -120,7 +120,7 @@
     <button class="btn" id="zoomOutBtn" title="zoom out (-)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
     </button>
-    <div class="zoom-display" id="zoomDisplay">100%</div>
+    <input class="zoom-display" id="zoomDisplay" type="text" value="100%" />
     <button class="btn" id="zoomInBtn" title="zoom in (+)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
     </button>
@@ -230,7 +230,7 @@
   function updateButtons(){
     prevBtn.disabled = currentPage <= 1;
     nextBtn.disabled = currentPage >= totalPages;
-    zoomDisplay.textContent = Math.round(scale * 100) + '%';
+    zoomDisplay.value = Math.round(scale * 100) + '%';
   }
 
   var observer = null;
@@ -285,6 +285,18 @@
   zoomInBtn.addEventListener('click', function(){ if(scale < MAX_SCALE){ scale = Math.min(scale + SCALE_STEP, MAX_SCALE); reRender(); } });
   zoomOutBtn.addEventListener('click', function(){ if(scale > MIN_SCALE){ scale = Math.max(scale - SCALE_STEP, MIN_SCALE); reRender(); } });
   fitBtn.addEventListener('click', function(){ scale = 1.0; reRender(); });
+
+  zoomDisplay.addEventListener('change', function(){
+    var val = parseInt(zoomDisplay.value.replace('%',''), 10);
+    if(!isNaN(val)){
+      scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, val / 100));
+      reRender();
+    } else {
+      zoomDisplay.value = Math.round(scale * 100) + '%';
+    }
+  });
+  zoomDisplay.addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){ e.preventDefault(); zoomDisplay.blur(); }
 
   rotateCwBtn.addEventListener('click', function(){ rotation = (rotation + 90) % 360; reRender(); });
   rotateCcwBtn.addEventListener('click', function(){ rotation = (rotation + 270) % 360; reRender(); });
